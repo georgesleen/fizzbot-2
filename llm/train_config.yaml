@@ -1,18 +1,18 @@
 model:
   # Hugging Face model id or local path to a pretrained model.
-  name_or_path: gpt2
+  name_or_path: mistralai/Mistral-7B-v0.1
   # Prefer fast tokenizer implementations when available.
   use_fast_tokenizer: true
 
 quantization:
   # Quantization mode: none | 4bit | 8bit. QLoRA uses 4bit and needs CUDA.
-  mode: none
+  mode: 4bit
 
 data:
   # Path to JSONL training data with {"context": "...", "target": "..."}.
   train_jsonl: train_data/training_examples.jsonl
   # Max total token length for each example (context trimmed from the left).
-  max_length: 512
+  max_length: 1024
   # Limit number of examples for local smoke tests (0 = use all).
   max_train_examples: 0
 
@@ -20,13 +20,13 @@ training:
   # Output directory for checkpoints and final model.
   output_dir: runs/fizzbot
   # Number of full passes over the dataset (ignored if max_steps > 0).
-  num_train_epochs: 1
+  num_train_epochs: 2
   # Batch size per device (GPU/CPU).
-  per_device_train_batch_size: 4
+  per_device_train_batch_size: 2
   # Steps to accumulate gradients before optimizer step.
-  gradient_accumulation_steps: 1
+  gradient_accumulation_steps: 8
   # Base learning rate.
-  learning_rate: 5.0e-5
+  learning_rate: 2.0e-4
   # L2 weight decay (often 0.0 for LoRA/QLoRA).
   weight_decay: 0.0
   # Linear warmup steps.
@@ -42,20 +42,25 @@ training:
   # Cap total steps (overrides epochs when > 0).
   max_steps: -1
   # Enable FP16 mixed precision on CUDA.
-  fp16: true
+  fp16: false
   # Enable BF16 mixed precision on CUDA.
-  bf16: false
+  bf16: true
 
 lora:
   # Enable LoRA adapters (requires peft).
-  enabled: false
+  enabled: true
   # LoRA rank (capacity).
-  r: 8
+  r: 64
   # LoRA scaling factor.
-  alpha: 16
+  alpha: 128
   # Dropout applied to LoRA layers.
   dropout: 0.05
   # Target module names (model-specific).
   target_modules:
     - q_proj
+    - k_proj
     - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
