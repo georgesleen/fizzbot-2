@@ -134,6 +134,14 @@ def maybe_wrap_lora(model, cfg: Dict[str, Any]):
     return get_peft_model(model, config)
 
 
+def resolve_path(base_dir: Path, value: str) -> Path:
+    """Resolve a path relative to a base directory when value is not absolute."""
+    path = Path(value)
+    if path.is_absolute():
+        return path
+    return base_dir / path
+
+
 def build_model(model_name: str, cfg: Dict[str, Any]):
     """Load a base model, optionally using 4-bit/8-bit quantization."""
     quant_cfg = cfg.get("quantization", {})
@@ -215,6 +223,7 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    config_dir = args.config.resolve().parent
     if args.smoke_test:
         cfg = apply_smoke_test_overrides(cfg)
     model_cfg = cfg.get("model", {})
@@ -235,7 +244,10 @@ def main() -> None:
     model = build_model(model_name, cfg)
     model = maybe_wrap_lora(model, cfg)
 
-    train_path = Path(data_cfg.get("train_jsonl", "train_data/training_examples.jsonl"))
+    train_path = resolve_path(
+        config_dir,
+        data_cfg.get("train_jsonl", "train_data/training_examples.jsonl"),
+    )
     rows = load_jsonl(train_path)
     max_train_examples = int(data_cfg.get("max_train_examples", 0))
     if max_train_examples > 0:
@@ -248,7 +260,9 @@ def main() -> None:
     use_fp16 = bool(train_cfg.get("fp16", False)) and use_cuda
     use_bf16 = bool(train_cfg.get("bf16", False)) and use_cuda
 
-    base_output_dir = Path(train_cfg.get("output_dir", "llm/runs/fizzbot"))
+    base_output_dir = resolve_path(
+        config_dir, train_cfg.get("output_dir", "llm/runs/fizzbot")
+    )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = str(base_output_dir / timestamp)
     args = TrainingArguments(
