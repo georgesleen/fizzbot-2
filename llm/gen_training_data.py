@@ -2,9 +2,10 @@ from pathlib import Path
 import json
 import random
 
-src_root = Path("data/data_raw")
+src_root = Path("data/data_cleaned")
 dst_root = Path("train_data")
 examples_path = dst_root / "training_examples.jsonl"
+speaker_map_path = dst_root / "speaker_map.json"
 
 MIN_CTX = 1
 MAX_CTX = 8
@@ -84,22 +85,17 @@ def main() -> None:
     speaker_map = {}
 
     for src_path in src_root.rglob("*.json"):
-        rel_path = src_path.relative_to(src_root)
-        dst_path = (dst_root / rel_path).with_suffix(".jsonl")
-        dst_path.parent.mkdir(parents=True, exist_ok=True)
-
         with src_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
             clean_data = normalize_data(data)
-
-        with dst_path.open("w", encoding="utf-8") as f:
-            f.write(json_to_jsonl(clean_data))
 
         all_examples.extend(build_training_examples(clean_data, speaker_map))
 
     examples_path.parent.mkdir(parents=True, exist_ok=True)
     with examples_path.open("w", encoding="utf-8") as f:
         f.write(json_to_jsonl(all_examples))
+    with speaker_map_path.open("w", encoding="utf-8") as f:
+        json.dump(speaker_map, f, ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":
