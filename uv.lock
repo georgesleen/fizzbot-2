@@ -164,6 +164,7 @@ name = "fizzbot-llm"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "accelerate" },
     { name = "pyyaml" },
     { name = "torch" },
     { name = "transformers" },
@@ -180,6 +181,7 @@ qlora = [
 
 [package.metadata]
 requires-dist = [
+    { name = "accelerate", specifier = ">=0.26.0" },
     { name = "bitsandbytes", marker = "extra == 'qlora'", specifier = ">=0.43.0" },
     { name = "peft", marker = "extra == 'lora'", specifier = ">=0.11.0" },
     { name = "peft", marker = "extra == 'qlora'", specifier = ">=0.11.0" },
