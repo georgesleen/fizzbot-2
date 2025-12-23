@@ -60,6 +60,10 @@ def _tokenize_example(
     if tokenizer.bos_token_id is not None and len(input_ids) < max_length:
         input_ids = [tokenizer.bos_token_id] + input_ids
         labels = [-100] + labels
+    elif tokenizer.bos_token_id is not None and len(input_ids) == max_length:
+        # Avoid exceeding max_length when a BOS token is present.
+        input_ids = [tokenizer.bos_token_id] + input_ids[:-1]
+        labels = [-100] + labels[:-1]
 
     attention_mask = [1] * len(input_ids)
     return {"input_ids": input_ids, "labels": labels, "attention_mask": attention_mask}
