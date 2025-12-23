@@ -184,6 +184,11 @@ def main() -> None:
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top-p", type=float, default=0.9)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--no-eos-stop",
+        action="store_true",
+        help="Do not stop generation on EOS; use max_new_tokens instead.",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config).get("run", {})
@@ -210,6 +215,7 @@ def main() -> None:
     temperature = args.temperature or float(cfg.get("temperature", 0.8))
     top_p = args.top_p or float(cfg.get("top_p", 0.9))
     seed = args.seed or int(cfg.get("seed", 0))
+    no_eos_stop = args.no_eos_stop or bool(cfg.get("no_eos_stop", False))
     decode_output = args.decode or bool(cfg.get("decode", False))
     speaker_map_path = Path(
         args.speaker_map
@@ -252,12 +258,14 @@ def main() -> None:
         model = model.to("cuda")
         inputs = {k: v.to("cuda") for k, v in inputs.items()}
     with torch.no_grad():
+        eos_token_id = None if no_eos_stop else model.config.eos_token_id
         out = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=True,
             temperature=temperature,
             top_p=top_p,
+            eos_token_id=eos_token_id,
         )
 
     output_text = tokenizer.decode(out[0], skip_special_tokens=False)

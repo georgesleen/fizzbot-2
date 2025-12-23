@@ -22,3 +22,5 @@ run:
   top_p: 0.9
   # RNG seed (0 disables seeding).
   seed: 0
+  # Disable EOS stopping; generation ends at max_new_tokens.
+  no_eos_stop: false
