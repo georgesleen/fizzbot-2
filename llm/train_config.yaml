@@ -18,7 +18,7 @@ data:
 
 training:
   # Output directory for checkpoints and final model.
-  output_dir: llm/runs/fizzbot
+  output_dir: runs/fizzbot
   # Number of full passes over the dataset (ignored if max_steps > 0).
   num_train_epochs: 1
   # Batch size per device (GPU/CPU).

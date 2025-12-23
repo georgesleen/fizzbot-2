@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 from typing import Any, Dict, List
+from datetime import datetime
 
 import torch
 import yaml
@@ -247,8 +248,11 @@ def main() -> None:
     use_fp16 = bool(train_cfg.get("fp16", False)) and use_cuda
     use_bf16 = bool(train_cfg.get("bf16", False)) and use_cuda
 
+    base_output_dir = Path(train_cfg.get("output_dir", "llm/runs/fizzbot"))
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = str(base_output_dir / timestamp)
     args = TrainingArguments(
-        output_dir=train_cfg.get("output_dir", "llm/runs/fizzbot"),
+        output_dir=output_dir,
         num_train_epochs=float(train_cfg.get("num_train_epochs", 1)),
         per_device_train_batch_size=int(
             train_cfg.get("per_device_train_batch_size", 4)
@@ -277,8 +281,8 @@ def main() -> None:
     )
 
     trainer.train()
-    trainer.save_model(args.output_dir)
-    tokenizer.save_pretrained(args.output_dir)
+    trainer.save_model(output_dir)
+    tokenizer.save_pretrained(output_dir)
 
 
 if __name__ == "__main__":
