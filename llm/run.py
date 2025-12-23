@@ -27,7 +27,7 @@ def _resolve_model_dir(
     if model_dir is not None and latest:
         raise ValueError("Use either --model-dir or --latest, not both.")
     if model_dir is not None:
-        return str(model_dir)
+        return str(model_dir.resolve())
     if latest:
         if not runs_dir.exists():
             raise FileNotFoundError(f"Runs directory not found: {runs_dir}")
@@ -42,6 +42,19 @@ def _resolve_model_dir(
         return gpu_model
 
     raise ValueError("Provide --model-dir/--latest or set a device-specific model.")
+
+
+def _resolve_tokenizer_dir(model_dir: Path) -> Path:
+    """Use checkpoint tokenizer if present; otherwise fall back to parent run dir."""
+    candidates = [
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "vocab.json",
+        "merges.txt",
+    ]
+    if any((model_dir / name).exists() for name in candidates):
+        return model_dir
+    return model_dir.parent
 
 
 def main() -> None:
@@ -133,8 +146,16 @@ def main() -> None:
     model_id = _resolve_model_dir(
         args.model_dir, runs_dir, args.latest, device, cpu_model, gpu_model
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_id)
+    model_path = Path(model_id)
+    local_only = model_path.exists()
+    tokenizer_dir = _resolve_tokenizer_dir(model_path) if local_only else model_path
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_dir, local_files_only=local_only
+    )
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path, local_files_only=local_only
+    )
 
     prompt = f"{args.speaker} {args.content} <EOT>"
     inputs = tokenizer(prompt, return_tensors="pt")
