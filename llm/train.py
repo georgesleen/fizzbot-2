@@ -173,6 +173,30 @@ def build_model(model_name: str, cfg: Dict[str, Any]):
     )
 
 
+def apply_smoke_test_overrides(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Override config with tiny settings for quick local verification."""
+    cfg = dict(cfg)
+    cfg["model"] = dict(cfg.get("model", {}))
+    cfg["data"] = dict(cfg.get("data", {}))
+    cfg["training"] = dict(cfg.get("training", {}))
+    cfg["quantization"] = dict(cfg.get("quantization", {}))
+
+    cfg["model"]["name_or_path"] = "sshleifer/tiny-gpt2"
+    cfg["quantization"]["mode"] = "none"
+
+    cfg["data"]["max_train_examples"] = 200
+    cfg["data"]["max_length"] = 128
+
+    cfg["training"]["max_steps"] = 20
+    cfg["training"]["per_device_train_batch_size"] = 1
+    cfg["training"]["logging_steps"] = 1
+    cfg["training"]["save_steps"] = 20
+    cfg["training"]["fp16"] = False
+    cfg["training"]["bf16"] = False
+
+    return cfg
+
+
 def main() -> None:
     """Entrypoint for training with YAML-configured settings."""
     parser = argparse.ArgumentParser(description="Train fizzbot chat model")
@@ -182,9 +206,16 @@ def main() -> None:
         default=Path(__file__).resolve().parent / "train_config.yaml",
         help="Path to YAML config",
     )
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Run a tiny local training smoke test.",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    if args.smoke_test:
+        cfg = apply_smoke_test_overrides(cfg)
     model_cfg = cfg.get("model", {})
     data_cfg = cfg.get("data", {})
     train_cfg = cfg.get("training", {})
