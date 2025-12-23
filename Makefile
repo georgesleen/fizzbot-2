@@ -47,14 +47,14 @@ docker-train-cpu:
 		-v $(ROOT_DIR):/workspace \
 		-w /workspace \
 		$(IMAGE_NAME) \
-		uv run llm/train.py
+		uv run llm/train.py --config llm/train_config_cpu.yaml
 
 docker-smoke-cpu:
 	docker run --rm -it \
 		-v $(ROOT_DIR):/workspace \
 		-w /workspace \
 		$(IMAGE_NAME) \
-		uv run llm/train.py --smoke-test
+		uv run llm/train.py --smoke-test --config llm/train_config_cpu.yaml
 
 docker-train-cpu-build: docker-build docker-train-cpu
 

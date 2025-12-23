@@ -17,3 +17,6 @@ dependencies = [
 [project.optional-dependencies]
 lora = ["peft>=0.11.0"]
 qlora = ["bitsandbytes>=0.43.0", "peft>=0.11.0"]
+
+[tool.setuptools]
+packages = []

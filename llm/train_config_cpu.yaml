@@ -1,0 +1,39 @@
+model:
+  # Smaller CPU-friendly model for local runs.
+  name_or_path: gpt2
+  use_fast_tokenizer: true
+
+quantization:
+  # Quantization requires CUDA, so keep CPU runs unquantized.
+  mode: none
+
+data:
+  train_jsonl: train_data/training_examples.jsonl
+  max_length: 512
+  max_train_examples: 0
+
+training:
+  output_dir: runs/fizzbot_cpu
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 1
+  learning_rate: 5.0e-5
+  weight_decay: 0.0
+  warmup_steps: 0
+  logging_steps: 50
+  save_steps: 500
+  save_total_limit: 2
+  seed: 42
+  max_steps: -1
+  fp16: false
+  bf16: false
+
+lora:
+  # LoRA needs peft; keep disabled for CPU runs by default.
+  enabled: false
+  r: 8
+  alpha: 16
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - v_proj
