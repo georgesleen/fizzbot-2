@@ -17,11 +17,13 @@ from transformers import (
 
 
 def load_config(path: Path) -> Dict[str, Any]:
+    """Load a YAML config file into a dictionary."""
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
 def load_jsonl(path: Path) -> List[Dict[str, str]]:
+    """Load a JSONL file (one JSON object per line)."""
     rows = []
     with path.open("r", encoding="utf-8") as f:
         for line in f:
@@ -38,6 +40,7 @@ def _tokenize_example(
     target: str,
     max_length: int,
 ) -> Dict[str, List[int]]:
+    """Tokenize context/target and mask labels so only target contributes to loss."""
     ctx_ids = tokenizer.encode(context, add_special_tokens=False) if context else []
     tgt_ids = tokenizer.encode(target, add_special_tokens=False) if target else []
 
@@ -62,6 +65,8 @@ def _tokenize_example(
 
 
 class ChatDataset(Dataset):
+    """Dataset that yields tokenized chat examples with masked context labels."""
+
     def __init__(self, rows: List[Dict[str, str]], tokenizer, max_length: int):
         self.rows = rows
         self.tokenizer = tokenizer
@@ -81,11 +86,14 @@ def _pad_sequences(
     sequences: List[List[int]],
     pad_value: int,
 ) -> List[List[int]]:
+    """Pad sequences to the same length with the provided pad value."""
     max_len = max(len(seq) for seq in sequences)
     return [seq + [pad_value] * (max_len - len(seq)) for seq in sequences]
 
 
 class DataCollator:
+    """Pad and batch tokenized examples for the Trainer."""
+
     def __init__(self, pad_token_id: int):
         self.pad_token_id = pad_token_id
 
@@ -104,6 +112,7 @@ class DataCollator:
 
 
 def maybe_wrap_lora(model, cfg: Dict[str, Any]):
+    """Optionally wrap a model with LoRA adapters based on config."""
     lora_cfg = cfg.get("lora", {})
     if not lora_cfg.get("enabled", False):
         return model
@@ -125,6 +134,7 @@ def maybe_wrap_lora(model, cfg: Dict[str, Any]):
 
 
 def build_model(model_name: str, cfg: Dict[str, Any]):
+    """Load a base model, optionally using 4-bit/8-bit quantization."""
     quant_cfg = cfg.get("quantization", {})
     quant_mode = str(quant_cfg.get("mode", "none")).lower()
 
@@ -164,6 +174,7 @@ def build_model(model_name: str, cfg: Dict[str, Any]):
 
 
 def main() -> None:
+    """Entrypoint for training with YAML-configured settings."""
     parser = argparse.ArgumentParser(description="Train fizzbot chat model")
     parser.add_argument(
         "--config",
@@ -194,6 +205,9 @@ def main() -> None:
 
     train_path = Path(data_cfg.get("train_jsonl", "train_data/training_examples.jsonl"))
     rows = load_jsonl(train_path)
+    max_train_examples = int(data_cfg.get("max_train_examples", 0))
+    if max_train_examples > 0:
+        rows = rows[:max_train_examples]
 
     max_length = int(data_cfg.get("max_length", 512))
     dataset = ChatDataset(rows, tokenizer, max_length=max_length)
@@ -218,6 +232,7 @@ def main() -> None:
         save_steps=int(train_cfg.get("save_steps", 500)),
         save_total_limit=int(train_cfg.get("save_total_limit", 2)),
         seed=int(train_cfg.get("seed", 42)),
+        max_steps=int(train_cfg.get("max_steps", -1)),
         fp16=use_fp16,
         bf16=use_bf16,
         report_to=[],
