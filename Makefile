@@ -26,6 +26,7 @@ docker-build:
 
 docker-train-gpu:
 	docker run --rm -it --gpus all \
+		-e UV_PROJECT_ENVIRONMENT=/tmp/uv-venv \
 		-v $(ROOT_DIR):/workspace \
 		-w /workspace \
 		$(IMAGE_NAME) \
@@ -33,6 +34,7 @@ docker-train-gpu:
 
 docker-smoke:
 	docker run --rm -it --gpus all \
+		-e UV_PROJECT_ENVIRONMENT=/tmp/uv-venv \
 		-v $(ROOT_DIR):/workspace \
 		-w /workspace \
 		$(IMAGE_NAME) \
@@ -44,6 +46,7 @@ docker-smoke-build: docker-build docker-smoke
 
 docker-train-cpu:
 	docker run --rm -it \
+		-e UV_PROJECT_ENVIRONMENT=/tmp/uv-venv \
 		-v $(ROOT_DIR):/workspace \
 		-w /workspace \
 		$(IMAGE_NAME) \
@@ -51,6 +54,7 @@ docker-train-cpu:
 
 docker-smoke-cpu:
 	docker run --rm -it \
+		-e UV_PROJECT_ENVIRONMENT=/tmp/uv-venv \
 		-v $(ROOT_DIR):/workspace \
 		-w /workspace \
 		$(IMAGE_NAME) \
