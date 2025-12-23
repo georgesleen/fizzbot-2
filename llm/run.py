@@ -69,7 +69,7 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(model_dir)
     model = AutoModelForCausalLM.from_pretrained(model_dir)
 
-    prompt = f"{args.speaker} {args.content}"
+    prompt = f"{args.speaker} {args.content} <EOT>"
     inputs = tokenizer(prompt, return_tensors="pt")
     with torch.no_grad():
         out = model.generate(

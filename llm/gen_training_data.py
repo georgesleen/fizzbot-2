@@ -9,6 +9,7 @@ speaker_map_path = dst_root / "speaker_map.json"
 
 MIN_CTX = 1
 MAX_CTX = 8
+END_TOKEN = "<EOT>"
 
 
 def normalize_data(dataset: list) -> list:
@@ -60,12 +61,12 @@ def build_training_examples(
         target_msg = dataset[idx]
 
         context = "\n".join(
-            f"{_speaker_token(m['username'], speaker_map)} {m['content']}"
+            f"{_speaker_token(m['username'], speaker_map)} {m['content']} {END_TOKEN}"
             for m in context_msgs
         )
         target = (
             f"{_speaker_token(target_msg['username'], speaker_map)} "
-            f"{target_msg['content']}"
+            f"{target_msg['content']} {END_TOKEN}"
         )
 
         examples.append({"context": context, "target": target})
