@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict
 
 import torch
 import yaml
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+SPEAKER_RE = re.compile(r"<S\d+>")
 
 
 def load_config(path: Path) -> Dict[str, Any]:
@@ -78,17 +81,30 @@ def load_speaker_map(path: Path) -> dict[str, str]:
 def decode_text(text: str, token_to_user: dict[str, str]) -> str:
     """Replace speaker tokens with usernames and format lines as 'user: content'."""
     lines = []
-    for raw in text.splitlines():
-        raw = raw.replace("<EOT>", "").strip()
-        if not raw:
+    segments = re.split(r"(<S\d+>)", text)
+    current_token = None
+    buffer = []
+
+    for segment in segments:
+        if not segment:
             continue
-        parts = raw.split(maxsplit=1)
-        if not parts:
-            continue
-        token = parts[0]
-        content = parts[1] if len(parts) > 1 else ""
-        username = token_to_user.get(token, token)
-        lines.append(f"{username}: {content}".rstrip())
+        if SPEAKER_RE.fullmatch(segment):
+            if current_token is not None:
+                content = "".join(buffer).replace("<EOT>", "").strip()
+                if content:
+                    username = token_to_user.get(current_token, current_token)
+                    lines.append(f"{username}: {content}".rstrip())
+            current_token = segment
+            buffer = []
+        else:
+            buffer.append(segment)
+
+    if current_token is not None:
+        content = "".join(buffer).replace("<EOT>", "").strip()
+        if content:
+            username = token_to_user.get(current_token, current_token)
+            lines.append(f"{username}: {content}".rstrip())
+
     return "\n".join(lines)
 
 
