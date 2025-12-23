@@ -16,10 +16,16 @@ help:
 	@echo "  docker-smoke-cpu  Run CPU smoke test in Docker (no build)"
 
 gen-training-data:
-	uv run llm/gen_training_data.py
+	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/gen_training_data.py
 
 test-latest:
-	uv run llm/run.py --latest --speaker "<S0>" --content "hello everyone"
+	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --latest --decode --speaker "<S0>" --content "hello everyone"
+
+fix-uv-cache:
+	sudo rm -rf $$HOME/.cache/uv
+
+fix-venv-perms:
+	sudo chown -R "$$USER:$$USER" .venv
 
 docker-build:
 	docker build -t $(IMAGE_NAME) -f $(DOCKERFILE) $(ROOT_DIR)
@@ -65,4 +71,4 @@ docker-train-cpu-build: docker-build docker-train-cpu
 docker-smoke-cpu-build: docker-build docker-smoke-cpu
 
 local-smoke:
-	uv run llm/train.py --smoke-test
+	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/train.py --smoke-test

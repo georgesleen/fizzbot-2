@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 from typing import Any, Dict
 
@@ -27,7 +28,15 @@ def _resolve_model_dir(
     if model_dir is not None and latest:
         raise ValueError("Use either --model-dir or --latest, not both.")
     if model_dir is not None:
-        return str(model_dir.resolve())
+        candidate = model_dir
+        if not candidate.exists() and not candidate.is_absolute():
+            candidate = (Path(__file__).resolve().parent / candidate)
+        if not candidate.exists():
+            raise FileNotFoundError(
+                f"Model directory not found: {model_dir}. "
+                f"Tried {candidate} as a fallback."
+            )
+        return str(candidate.resolve())
     if latest:
         if not runs_dir.exists():
             raise FileNotFoundError(f"Runs directory not found: {runs_dir}")
@@ -54,7 +63,33 @@ def _resolve_tokenizer_dir(model_dir: Path) -> Path:
     ]
     if any((model_dir / name).exists() for name in candidates):
         return model_dir
-    return model_dir.parent
+    if any((model_dir.parent / name).exists() for name in candidates):
+        return model_dir.parent
+    return model_dir
+
+
+def load_speaker_map(path: Path) -> dict[str, str]:
+    """Load the speaker map (username -> token) and invert it."""
+    with path.open("r", encoding="utf-8") as f:
+        speaker_map = json.load(f)
+    return {token: username for username, token in speaker_map.items()}
+
+
+def decode_text(text: str, token_to_user: dict[str, str]) -> str:
+    """Replace speaker tokens with usernames and format lines as 'user: content'."""
+    lines = []
+    for raw in text.splitlines():
+        raw = raw.replace("<EOT>", "").strip()
+        if not raw:
+            continue
+        parts = raw.split(maxsplit=1)
+        if not parts:
+            continue
+        token = parts[0]
+        content = parts[1] if len(parts) > 1 else ""
+        username = token_to_user.get(token, token)
+        lines.append(f"{username}: {content}".rstrip())
+    return "\n".join(lines)
 
 
 def main() -> None:
@@ -83,6 +118,12 @@ def main() -> None:
         help="Base directory containing timestamped runs.",
     )
     parser.add_argument(
+        "--speaker-map",
+        type=Path,
+        default=Path("train_data/speaker_map.json"),
+        help="Path to speaker_map.json for decoding output.",
+    )
+    parser.add_argument(
         "--cpu-model",
         type=str,
         default=None,
@@ -99,6 +140,17 @@ def main() -> None:
         choices=["auto", "cpu", "cuda"],
         default="auto",
         help="Device selection (auto uses CUDA if available).",
+    )
+    parser.add_argument(
+        "--decode",
+        action="store_true",
+        help="Decode speaker tokens into usernames using speaker_map.json.",
+    )
+    parser.add_argument(
+        "--tokenizer-model",
+        type=str,
+        default=None,
+        help="Tokenizer model id/path to use when missing from checkpoint.",
     )
     parser.add_argument(
         "--speaker",
@@ -119,6 +171,7 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = load_config(args.config).get("run", {})
+    config_dir = args.config.resolve().parent
 
     runs_dir = Path(
         args.runs_dir
@@ -126,16 +179,29 @@ def main() -> None:
         else cfg.get("runs_dir", "runs/fizzbot")
     )
     if not runs_dir.is_absolute():
-        runs_dir = Path(__file__).resolve().parent / runs_dir
+        runs_dir = config_dir / runs_dir
 
     cpu_model = args.cpu_model if args.cpu_model is not None else cfg.get("cpu_model")
     gpu_model = args.gpu_model if args.gpu_model is not None else cfg.get("gpu_model")
     device = args.device if args.device != "auto" else cfg.get("device", "auto")
+    tokenizer_model = (
+        args.tokenizer_model
+        if args.tokenizer_model is not None
+        else cfg.get("tokenizer_model")
+    )
 
     max_new_tokens = args.max_new_tokens or int(cfg.get("max_new_tokens", 120))
     temperature = args.temperature or float(cfg.get("temperature", 0.8))
     top_p = args.top_p or float(cfg.get("top_p", 0.9))
     seed = args.seed or int(cfg.get("seed", 0))
+    decode_output = args.decode or bool(cfg.get("decode", False))
+    speaker_map_path = Path(
+        args.speaker_map
+        if args.speaker_map is not None
+        else cfg.get("speaker_map", "train_data/speaker_map.json")
+    )
+    if not speaker_map_path.is_absolute():
+        speaker_map_path = config_dir / speaker_map_path
 
     if seed:
         torch.manual_seed(seed)
@@ -149,6 +215,13 @@ def main() -> None:
     model_path = Path(model_id)
     local_only = model_path.exists()
     tokenizer_dir = _resolve_tokenizer_dir(model_path) if local_only else model_path
+    if local_only and tokenizer_dir == model_path:
+        fallback = tokenizer_model or cpu_model or gpu_model
+        if not fallback:
+            raise ValueError(
+                "Tokenizer files not found in checkpoint; provide --tokenizer-model."
+            )
+        tokenizer_dir = fallback
 
     tokenizer = AutoTokenizer.from_pretrained(
         tokenizer_dir, local_files_only=local_only
@@ -171,7 +244,11 @@ def main() -> None:
             top_p=top_p,
         )
 
-    print(tokenizer.decode(out[0], skip_special_tokens=False))
+    output_text = tokenizer.decode(out[0], skip_special_tokens=False)
+    if decode_output:
+        token_to_user = load_speaker_map(speaker_map_path)
+        output_text = decode_text(output_text, token_to_user)
+    print(output_text)
 
 
 if __name__ == "__main__":
