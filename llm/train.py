@@ -168,7 +168,7 @@ def main() -> None:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("llm/train_config.yaml"),
+        default=Path(__file__).resolve().parent / "train_config.yaml",
         help="Path to YAML config",
     )
     args = parser.parse_args()
