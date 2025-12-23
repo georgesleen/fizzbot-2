@@ -2,12 +2,13 @@ IMAGE_NAME ?= fizzbot-llm
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 DOCKERFILE ?= $(ROOT_DIR)/llm/Dockerfile
 
-.PHONY: help docker-build docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data
+.PHONY: help docker-build docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data test-latest
 
 help:
 	@echo "Targets:"
 	@echo "  gen-training-data Generate training examples JSONL"
 	@echo "  local-smoke       Run a tiny local smoke test"
+	@echo "  test-latest       Run inference against latest trained model"
 	@echo "  docker-build      Build the training Docker image"
 	@echo "  docker-train-gpu  Run GPU training in Docker (no build)"
 	@echo "  docker-smoke      Run GPU smoke test in Docker (no build)"
@@ -16,6 +17,9 @@ help:
 
 gen-training-data:
 	uv run llm/gen_training_data.py
+
+test-latest:
+	uv run llm/run.py --latest --speaker "<S0>" --content "hello everyone"
 
 docker-build:
 	docker build -t $(IMAGE_NAME) -f $(DOCKERFILE) $(ROOT_DIR)
