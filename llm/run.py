@@ -108,6 +108,20 @@ def decode_text(text: str, token_to_user: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
+def count_speaker_tokens(text: str) -> int:
+    """Count speaker tokens in text."""
+    return len(SPEAKER_RE.findall(text))
+
+
+def _model_max_length(model) -> int:
+    """Get model max position length for safe truncation."""
+    if hasattr(model.config, "max_position_embeddings"):
+        return int(model.config.max_position_embeddings)
+    if hasattr(model.config, "n_positions"):
+        return int(model.config.n_positions)
+    return 1024
+
+
 def main() -> None:
     """CLI entrypoint for running a trained fizzbot model."""
     parser = argparse.ArgumentParser(description="Run a trained fizzbot model")
@@ -163,6 +177,12 @@ def main() -> None:
         help="Decode speaker tokens into usernames using speaker_map.json.",
     )
     parser.add_argument(
+        "--turns",
+        type=int,
+        default=0,
+        help="Stop after generating this many new speaker turns (0 = disabled).",
+    )
+    parser.add_argument(
         "--tokenizer-model",
         type=str,
         default=None,
@@ -216,6 +236,7 @@ def main() -> None:
     top_p = args.top_p or float(cfg.get("top_p", 0.9))
     seed = args.seed or int(cfg.get("seed", 0))
     no_eos_stop = args.no_eos_stop or bool(cfg.get("no_eos_stop", False))
+    turns = args.turns or int(cfg.get("turns", 0))
     decode_output = args.decode or bool(cfg.get("decode", False))
     speaker_map_path = Path(
         args.speaker_map
@@ -259,16 +280,49 @@ def main() -> None:
         inputs = {k: v.to("cuda") for k, v in inputs.items()}
     with torch.no_grad():
         eos_token_id = None if no_eos_stop else model.config.eos_token_id
-        out = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=True,
-            temperature=temperature,
-            top_p=top_p,
-            eos_token_id=eos_token_id,
-        )
-
-    output_text = tokenizer.decode(out[0], skip_special_tokens=False)
+        if turns > 0:
+            base_text = tokenizer.decode(inputs["input_ids"][0], skip_special_tokens=False)
+            initial_turns = count_speaker_tokens(base_text)
+            output_ids = inputs["input_ids"]
+            max_len = _model_max_length(model)
+            max_loops = 20
+            while True:
+                if output_ids.shape[1] >= max_len:
+                    output_ids = output_ids[:, -max_len + 1 :]
+                available = max_len - output_ids.shape[1]
+                if available <= 0:
+                    break
+                step_max_new = min(max_new_tokens, available)
+                attention_mask = torch.ones_like(output_ids)
+                out = model.generate(
+                    input_ids=output_ids,
+                    attention_mask=attention_mask,
+                    max_new_tokens=step_max_new,
+                    do_sample=True,
+                    temperature=temperature,
+                    top_p=top_p,
+                    eos_token_id=eos_token_id,
+                    pad_token_id=tokenizer.pad_token_id,
+                )
+                output_ids = out
+                output_text = tokenizer.decode(out[0], skip_special_tokens=False)
+                if count_speaker_tokens(output_text) - initial_turns >= turns:
+                    break
+                max_loops -= 1
+                if max_loops <= 0:
+                    break
+            output_text = tokenizer.decode(output_ids[0], skip_special_tokens=False)
+        else:
+            out = model.generate(
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                do_sample=True,
+                temperature=temperature,
+                top_p=top_p,
+                eos_token_id=eos_token_id,
+                pad_token_id=tokenizer.pad_token_id,
+            )
+            output_text = tokenizer.decode(out[0], skip_special_tokens=False)
     if decode_output:
         token_to_user = load_speaker_map(speaker_map_path)
         output_text = decode_text(output_text, token_to_user)

@@ -24,3 +24,5 @@ run:
   seed: 0
   # Disable EOS stopping; generation ends at max_new_tokens.
   no_eos_stop: false
+  # Stop after generating this many new speaker turns (0 = disabled).
+  turns: 0
