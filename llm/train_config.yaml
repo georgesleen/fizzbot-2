@@ -11,6 +11,10 @@ quantization:
 data:
   # Path to JSONL training data with {"context": "...", "target": "..."}.
   train_jsonl: train_data/training_examples.jsonl
+  # Optional validation JSONL path (overrides val_split when set).
+  val_jsonl: ""
+  # Fraction of training data used for validation (0 disables).
+  val_split: 0.02
   # Max total token length for each example (context trimmed from the left).
   max_length: 1024
   # Limit number of examples for local smoke tests (0 = use all).
@@ -23,6 +27,8 @@ training:
   num_train_epochs: 2
   # Batch size per device (GPU/CPU).
   per_device_train_batch_size: 2
+  # Eval batch size per device.
+  per_device_eval_batch_size: 2
   # Steps to accumulate gradients before optimizer step.
   gradient_accumulation_steps: 8
   # Base learning rate.
@@ -33,6 +39,8 @@ training:
   warmup_steps: 0
   # Log every N steps.
   logging_steps: 50
+  # Run evaluation every N steps (when val_split/val_jsonl is set).
+  eval_steps: 200
   # Save checkpoint every N steps.
   save_steps: 500
   # Keep at most this many checkpoints.

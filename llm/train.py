@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 from pathlib import Path
 from typing import Any, Dict, List
 from datetime import datetime
@@ -258,7 +259,27 @@ def main() -> None:
         rows = rows[:max_train_examples]
 
     max_length = int(data_cfg.get("max_length", 512))
+    val_path_value = data_cfg.get("val_jsonl")
+    val_split = float(data_cfg.get("val_split", 0.0))
+    seed = int(train_cfg.get("seed", 42))
+
+    if val_path_value:
+        val_path = resolve_path(config_dir, val_path_value)
+        val_rows = load_jsonl(val_path)
+    elif val_split > 0:
+        rng = random.Random(seed)
+        indices = list(range(len(rows)))
+        rng.shuffle(indices)
+        cut = max(1, int(len(indices) * val_split))
+        val_rows = [rows[i] for i in indices[:cut]]
+        rows = [rows[i] for i in indices[cut:]]
+    else:
+        val_rows = []
+
     dataset = ChatDataset(rows, tokenizer, max_length=max_length)
+    eval_dataset = (
+        ChatDataset(val_rows, tokenizer, max_length=max_length) if val_rows else None
+    )
 
     use_cuda = torch.cuda.is_available()
     use_fp16 = bool(train_cfg.get("fp16", False)) and use_cuda
@@ -275,6 +296,9 @@ def main() -> None:
         per_device_train_batch_size=int(
             train_cfg.get("per_device_train_batch_size", 4)
         ),
+        per_device_eval_batch_size=int(
+            train_cfg.get("per_device_eval_batch_size", 4)
+        ),
         gradient_accumulation_steps=int(
             train_cfg.get("gradient_accumulation_steps", 1)
         ),
@@ -282,12 +306,14 @@ def main() -> None:
         weight_decay=float(train_cfg.get("weight_decay", 0.0)),
         warmup_steps=int(train_cfg.get("warmup_steps", 0)),
         logging_steps=int(train_cfg.get("logging_steps", 50)),
+        eval_steps=int(train_cfg.get("eval_steps", 200)),
         save_steps=int(train_cfg.get("save_steps", 500)),
         save_total_limit=int(train_cfg.get("save_total_limit", 2)),
-        seed=int(train_cfg.get("seed", 42)),
+        seed=seed,
         max_steps=int(train_cfg.get("max_steps", -1)),
         fp16=use_fp16,
         bf16=use_bf16,
+        evaluation_strategy="steps" if eval_dataset else "no",
         report_to=[],
     )
 
@@ -295,6 +321,7 @@ def main() -> None:
         model=model,
         args=args,
         train_dataset=dataset,
+        eval_dataset=eval_dataset,
         data_collator=DataCollator(tokenizer.pad_token_id),
     )
 

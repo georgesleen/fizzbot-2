@@ -251,6 +251,7 @@ def main() -> None:
     parser.add_argument("--max-new-tokens", type=int, default=120)
     parser.add_argument("--temperature", type=float, default=0.8)
     parser.add_argument("--top-p", type=float, default=0.9)
+    parser.add_argument("--repetition-penalty", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
         "--no-eos-stop",
@@ -282,6 +283,9 @@ def main() -> None:
     max_new_tokens = args.max_new_tokens or int(cfg.get("max_new_tokens", 120))
     temperature = args.temperature or float(cfg.get("temperature", 0.8))
     top_p = args.top_p or float(cfg.get("top_p", 0.9))
+    repetition_penalty = args.repetition_penalty or float(
+        cfg.get("repetition_penalty", 1.0)
+    )
     seed = args.seed or int(cfg.get("seed", 0))
     no_eos_stop = args.no_eos_stop or bool(cfg.get("no_eos_stop", False))
     turns = args.turns or int(cfg.get("turns", 0))
@@ -347,6 +351,7 @@ def main() -> None:
                     do_sample=True,
                     temperature=temperature,
                     top_p=top_p,
+                    repetition_penalty=repetition_penalty,
                     eos_token_id=eos_token_id,
                     pad_token_id=tokenizer.pad_token_id,
                 )
@@ -367,6 +372,7 @@ def main() -> None:
                 do_sample=True,
                 temperature=temperature,
                 top_p=top_p,
+                repetition_penalty=repetition_penalty,
                 eos_token_id=eos_token_id,
                 pad_token_id=tokenizer.pad_token_id,
             )
