@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fizzbot-llm"
+version = "0.1.0"
+description = "Training utilities for fizzbot chat LLM."
+requires-python = ">=3.10"
+dependencies = [
+  "pyyaml>=6.0",
+  "torch>=2.1.0",
+  "transformers>=4.41.0",
+]
+
+[project.optional-dependencies]
+lora = ["peft>=0.11.0"]
+qlora = ["bitsandbytes>=0.43.0", "peft>=0.11.0"]
