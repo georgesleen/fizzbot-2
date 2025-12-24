@@ -1,0 +1,32 @@
+run:
+  # Device selection: auto | cpu | cuda.
+  device: auto
+  # Base directory containing timestamped runs for --latest.
+  runs_dir: runs/fizzbot
+  # Default model for CPU inference (model id or local path).
+  cpu_model: microsoft/phi-2
+  # Default model for CUDA inference (model id or local path).
+  gpu_model: mistralai/Mistral-7B-Instruct-v0.2
+  # Base model to use when loading LoRA adapters (optional override).
+  base_model: null
+  # Tokenizer model id/path to use when a checkpoint lacks tokenizer files.
+  tokenizer_model: gpt2
+  # Speaker map used to decode <S#> tokens into usernames.
+  speaker_map: ../train_data/speaker_map.json
+  # Decode speaker tokens into usernames by default.
+  decode: true
+  # Sampling controls.
+  # Maximum number of tokens to generate.
+  max_new_tokens: 120
+  # Sampling temperature (higher = more random).
+  temperature: 0.8
+  # Nucleus sampling probability.
+  top_p: 0.9
+  # Penalize repetition (>1.0 discourages repeats).
+  repetition_penalty: 1.1
+  # RNG seed (0 disables seeding).
+  seed: 0
+  # Disable EOS stopping; generation ends at max_new_tokens.
+  no_eos_stop: false
+  # Stop after generating this many new speaker turns (0 = disabled).
+  turns: 0

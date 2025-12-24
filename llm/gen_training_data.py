@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import random
+import re
 
 src_root = Path("data/data_cleaned")
 dst_root = Path("train_data")
@@ -9,6 +10,9 @@ speaker_map_path = dst_root / "speaker_map.json"
 
 MIN_CTX = 1
 MAX_CTX = 8
+END_TOKEN = "<EOT>"
+MENTION_ONLY_RE = re.compile(r"^(<@\w+>|@\w+)+$")  # @user or <@id>
+URL_ONLY_RE = re.compile(r"^https?://\S+$")
 
 
 def normalize_data(dataset: list) -> list:
@@ -22,7 +26,9 @@ def normalize_data(dataset: list) -> list:
         clean_msg = {}
 
         username = msg["author"]["username"]
-        content = msg["content"]
+        content = msg["content"].strip()
+        if not content:
+            continue
         timestamp = msg["timestamp"]
 
         clean_msg["username"] = username
@@ -60,17 +66,29 @@ def build_training_examples(
         target_msg = dataset[idx]
 
         context = "\n".join(
-            f"{_speaker_token(m['username'], speaker_map)} {m['content']}"
+            f"{_speaker_token(m['username'], speaker_map)} {m['content']} {END_TOKEN}"
             for m in context_msgs
+            if _is_valid_content(m["content"])
         )
         target = (
             f"{_speaker_token(target_msg['username'], speaker_map)} "
-            f"{target_msg['content']}"
+            f"{target_msg['content']} {END_TOKEN}"
         )
 
-        examples.append({"context": context, "target": target})
+        if context and _is_valid_content(target_msg["content"]):
+            examples.append({"context": context, "target": target})
 
     return examples
+
+
+def _is_valid_content(content: str) -> bool:
+    if not content:
+        return False
+    if MENTION_ONLY_RE.fullmatch(content):
+        return False
+    if URL_ONLY_RE.fullmatch(content):
+        return False
+    return True
 
 
 def json_to_jsonl(dataset: list) -> str:
