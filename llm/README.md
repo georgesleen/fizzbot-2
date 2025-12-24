@@ -1,6 +1,26 @@
 # LLM
 Training and inference pipeline for the fizzbot multi-speaker chat model.
 
+## Quick Start
+1) Install deps:
+```
+uv sync
+```
+
+2) If you have the pretrained model zip (`fizzbot_mistral_7b.zip`):
+   - Put it at `llm/runs/fizzbot_mistral_7b.zip`
+   - Unzip to `llm/runs/fizzbot_mistral_7b/`
+
+3) Run fizzbot:
+```
+make fizzbot
+```
+
+4) For training data from Discrub, put raw exports in:
+```
+data/data_cleaned/
+```
+
 This directory contains:
 - Data preprocessing to build JSONL training examples.
 - Training script with YAML config and optional validation split.
@@ -14,6 +34,8 @@ This directory contains:
 - **Context windows**: randomized length during preprocessing to improve robustness.
 - **No channel mixing**: contexts never cross channel boundaries.
 - **Train/val split**: added to validate loss trends and reduce overfitting.
+- **`--turns` behavior**: when set, inference runs multiple independent generations and concatenates responses for simple multi-message output.
+- **Repetition penalty**: inference-time control to reduce looping without changing training dynamics.
 
 ## Project Layout
 - `llm/gen_training_data.py`: build training JSONL + speaker map.
@@ -120,6 +142,8 @@ These are defined in the repo root `Makefile`:
 - `make gen-training-data`
 - `make local-smoke`
 - `make test-latest`
+- `make run-latest`
+- `make fizzbot`
 - `make docker-build`
 - `make docker-train-gpu`
 - `make docker-smoke`
@@ -131,6 +155,17 @@ These are defined in the repo root `Makefile`:
 - `make docker-smoke-cpu-build`
 - `make fix-uv-cache`
 - `make fix-venv-perms`
+
+## Using a Private Model ZIP
+If you have a private model that should not be checked into git (e.g. `fizzbot_mistral_7b.zip`):
+1) Place the zip at `llm/runs/fizzbot_mistral_7b.zip`.
+2) Unzip it to `llm/runs/fizzbot_mistral_7b/`.
+3) Run:
+```
+make fizzbot
+```
+
+The `runs/` directory is already ignored by git, so the model won't be committed.
 
 ## Docker
 Build:
