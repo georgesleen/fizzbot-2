@@ -14,6 +14,8 @@ This directory contains:
 - **Context windows**: randomized length during preprocessing to improve robustness.
 - **No channel mixing**: contexts never cross channel boundaries.
 - **Train/val split**: added to validate loss trends and reduce overfitting.
+- **`--turns` behavior**: when set, inference runs multiple independent generations and concatenates responses for simple multi-message output.
+- **Repetition penalty**: inference-time control to reduce looping without changing training dynamics.
 
 ## Project Layout
 - `llm/gen_training_data.py`: build training JSONL + speaker map.
@@ -120,6 +122,8 @@ These are defined in the repo root `Makefile`:
 - `make gen-training-data`
 - `make local-smoke`
 - `make test-latest`
+- `make run-latest`
+- `make fizzbot`
 - `make docker-build`
 - `make docker-train-gpu`
 - `make docker-smoke`
@@ -131,6 +135,17 @@ These are defined in the repo root `Makefile`:
 - `make docker-smoke-cpu-build`
 - `make fix-uv-cache`
 - `make fix-venv-perms`
+
+## Using a Private Model ZIP
+If you have a private model that should not be checked into git (e.g. `fizzbot_mistral_7b.zip`):
+1) Place the zip at `llm/runs/fizzbot_mistral_7b.zip`.
+2) Unzip it to `llm/runs/fizzbot_mistral_7b/`.
+3) Run:
+```
+make fizzbot
+```
+
+The `runs/` directory is already ignored by git, so the model won't be committed.
 
 ## Docker
 Build:
