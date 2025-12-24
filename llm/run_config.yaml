@@ -7,6 +7,8 @@ run:
   cpu_model: microsoft/phi-2
   # Default model for CUDA inference (model id or local path).
   gpu_model: mistralai/Mistral-7B-Instruct-v0.2
+  # Base model to use when loading LoRA adapters (optional override).
+  base_model: null
   # Tokenizer model id/path to use when a checkpoint lacks tokenizer files.
   tokenizer_model: gpt2
   # Speaker map used to decode <S#> tokens into usernames.

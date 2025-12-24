@@ -6,14 +6,20 @@ DOCKERFILE ?= $(ROOT_DIR)/llm/Dockerfile
 
 help:
 	@echo "Targets:"
+	@echo "  fix-uv-cache      Remove uv cache directory"
+	@echo "  fix-venv-perms    Fix local .venv permissions"
 	@echo "  gen-training-data Generate training examples JSONL"
 	@echo "  local-smoke       Run a tiny local smoke test"
 	@echo "  test-latest       Run inference against latest trained model"
 	@echo "  docker-build      Build the training Docker image"
 	@echo "  docker-train-gpu  Run GPU training in Docker (no build)"
 	@echo "  docker-smoke      Run GPU smoke test in Docker (no build)"
+	@echo "  docker-train-gpu-build Build and run GPU training in Docker"
+	@echo "  docker-smoke-build     Build and run GPU smoke test in Docker"
 	@echo "  docker-train-cpu  Run CPU training in Docker (no build)"
 	@echo "  docker-smoke-cpu  Run CPU smoke test in Docker (no build)"
+	@echo "  docker-train-cpu-build Build and run CPU training in Docker"
+	@echo "  docker-smoke-cpu-build Build and run CPU smoke test in Docker"
 
 gen-training-data:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/gen_training_data.py

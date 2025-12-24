@@ -215,6 +215,12 @@ def main() -> None:
         help="Model name or path to use when --device=cuda.",
     )
     parser.add_argument(
+        "--base-model",
+        type=str,
+        default=None,
+        help="Base model name/path to use when loading LoRA adapters.",
+    )
+    parser.add_argument(
         "--device",
         choices=["auto", "cpu", "cuda"],
         default="auto",
@@ -291,6 +297,9 @@ def main() -> None:
         if args.tokenizer_model is not None
         else cfg.get("tokenizer_model")
     )
+    base_model_override = (
+        args.base_model if args.base_model is not None else cfg.get("base_model")
+    )
 
     max_new_tokens = args.max_new_tokens or int(cfg.get("max_new_tokens", 120))
     temperature = args.temperature or float(cfg.get("temperature", 0.8))
@@ -323,9 +332,21 @@ def main() -> None:
     )
     model_path = Path(model_id)
     local_only = model_path.exists()
+    adapter_base_model = None
+    adapter_config_path = model_path / "adapter_config.json"
+    if local_only and adapter_config_path.exists():
+        with adapter_config_path.open("r", encoding="utf-8") as f:
+            adapter_config = json.load(f)
+        adapter_base_model = adapter_config.get("base_model_name_or_path")
     tokenizer_dir = _resolve_tokenizer_dir(model_path) if local_only else model_path
     if local_only and tokenizer_dir == model_path:
-        fallback = tokenizer_model or cpu_model or gpu_model
+        fallback = (
+            tokenizer_model
+            or base_model_override
+            or adapter_base_model
+            or cpu_model
+            or gpu_model
+        )
         if not fallback:
             raise ValueError(
                 "Tokenizer files not found in checkpoint; provide --tokenizer-model."
@@ -349,13 +370,37 @@ def main() -> None:
         bnb_4bit_compute_dtype=torch.float16,
     )
 
-    print(f"Loading model from {model_path}...")
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        local_files_only=local_only,
-        quantization_config=bnb_config,
-        device_map="auto",
-    )
+    if local_only and adapter_base_model:
+        base_model_name = base_model_override or adapter_base_model
+        if not base_model_name:
+            raise ValueError(
+                "Adapter checkpoint found but no base model specified. "
+                "Use --base-model or set run.base_model in run_config.yaml."
+            )
+        base_model_local = Path(str(base_model_name)).exists()
+        print(f"Loading base model from {base_model_name}...")
+        base_model = AutoModelForCausalLM.from_pretrained(
+            base_model_name,
+            local_files_only=base_model_local,
+            quantization_config=bnb_config,
+            device_map="auto",
+        )
+        try:
+            from peft import PeftModel
+        except ImportError as exc:
+            raise RuntimeError(
+                "LoRA adapter detected but peft is not installed."
+            ) from exc
+        print(f"Loading adapter from {model_path}...")
+        model = PeftModel.from_pretrained(base_model, model_path)
+    else:
+        print(f"Loading model from {model_path}...")
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            local_files_only=local_only,
+            quantization_config=bnb_config,
+            device_map="auto",
+        )
 
     if model.config.pad_token_id is None:
         model.config.pad_token_id = tokenizer.pad_token_id
