@@ -102,6 +102,7 @@ Common knobs:
 - `--top-p`
 - `--repetition-penalty`
 - `--no-eos-stop`
+- `--interactive`
 
 ## Decoding
 Decode raw output:

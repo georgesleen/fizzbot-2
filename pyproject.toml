@@ -12,6 +12,8 @@ dependencies = [
   "torch>=2.1.0",
   "transformers>=4.41.0",
   "accelerate>=0.26.0",
+  "bitsandbytes",
+  "peft",
 ]
 
 [project.optional-dependencies]
@@ -20,3 +22,19 @@ qlora = ["bitsandbytes>=0.43.0", "peft>=0.11.0"]
 
 [tool.setuptools]
 packages = []
+
+
+[tool.uv]
+# Define the package index for PyTorch with CUDA support
+[[tool.uv.index]]
+name = "pytorch-cu12"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+# Explicitly tell uv to pull torch from the index defined above
+torch = { index = "pytorch-cu12" }
+# You likely want these as well if you use them:
+torchvision = { index = "pytorch-cu12" }
+torchaudio = { index = "pytorch-cu12" }
+

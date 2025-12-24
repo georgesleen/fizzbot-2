@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any, Dict
 
@@ -240,19 +239,14 @@ def main() -> None:
     parser.add_argument(
         "--speaker",
         type=str,
-        required=False,  # CHANGED: Now optional (checked manually later)
+        required=True,
         help="Speaker token for the prompt, e.g. <S0>",
     )
     parser.add_argument(
         "--content",
         type=str,
-        required=False,  # CHANGED: Now optional
+        required=True,
         help="Prompt content that follows the speaker token.",
-    )
-    parser.add_argument(
-        "--interactive",  # NEW FLAG
-        action="store_true",
-        help="Enter interactive mode to prompt the model repeatedly.",
     )
     parser.add_argument("--max-new-tokens", type=int, default=120)
     parser.add_argument("--temperature", type=float, default=0.8)
@@ -265,12 +259,6 @@ def main() -> None:
         help="Do not stop generation on EOS; use max_new_tokens instead.",
     )
     args = parser.parse_args()
-
-    # MANUAL VALIDATION: If not interactive, we still need speaker + content
-    if not args.interactive and (not args.speaker or not args.content):
-        parser.error(
-            "the following arguments are required: --speaker, --content (unless using --interactive)"
-        )
 
     cfg = load_config(args.config).get("run", {})
     config_dir = args.config.resolve().parent
@@ -332,7 +320,7 @@ def main() -> None:
             )
         tokenizer_dir = fallback
 
-    # Check for local tokenizer existence to avoid offline errors with base models
+    # FIX 1: Allow internet access if the tokenizer path isn't local (e.g. "mistralai/...")
     is_local_tokenizer = Path(str(tokenizer_dir)).exists()
     tokenizer = AutoTokenizer.from_pretrained(
         tokenizer_dir, local_files_only=is_local_tokenizer
@@ -341,7 +329,7 @@ def main() -> None:
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    # 4-bit Quantization Config
+    # FIX 2: 4-bit Quantization Config
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
@@ -349,7 +337,7 @@ def main() -> None:
         bnb_4bit_compute_dtype=torch.float16,
     )
 
-    print(f"Loading model from {model_path}...")
+    # Load model with quantization and auto device map
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         local_files_only=local_only,
@@ -360,86 +348,29 @@ def main() -> None:
     if model.config.pad_token_id is None:
         model.config.pad_token_id = tokenizer.pad_token_id
 
-    # Pre-load map if needed for decoding
-    token_to_user = load_speaker_map(speaker_map_path) if decode_output else {}
+    prompt = f"{args.speaker} {args.content} <EOT>"
+    inputs = tokenizer(prompt, return_tensors="pt")
 
-    # === INTERACTIVE LOOP ===
-    print("Ready!")
-    while True:
-        if args.interactive:
-            try:
-                print("\n--- New Prompt ---")
-                current_speaker = input("Speaker (e.g. <S0>): ").strip()
-                if current_speaker.lower() in ["exit", "quit"]:
-                    break
-                if not current_speaker:
-                    continue
+    # FIX 3: Let device_map handle the model, but ensure inputs are on CUDA
+    if device == "cuda":
+        # model = model.to("cuda")  <-- Removed to prevent conflict with device_map="auto"
+        inputs = {k: v.to("cuda") for k, v in inputs.items()}
 
-                current_content = input("Content: ").strip()
-                if current_content.lower() in ["exit", "quit"]:
-                    break
-            except KeyboardInterrupt:
-                print("\nExiting...")
-                break
-        else:
-            current_speaker = args.speaker
-            current_content = args.content
+    with torch.no_grad():
+        eos_token_id = None if no_eos_stop else model.config.eos_token_id
 
-        prompt = f"{current_speaker} {current_content} <EOT>"
-        inputs = tokenizer(prompt, return_tensors="pt")
+        # FIX 4: Real Conversational Loop
+        if turns > 0:
+            base_text = tokenizer.decode(
+                inputs["input_ids"][0], skip_special_tokens=False
+            )
+            token_to_user = load_speaker_map(speaker_map_path) if decode_output else {}
 
-        if device == "cuda":
-            inputs = {k: v.to("cuda") for k, v in inputs.items()}
+            final_output_parts = []
 
-        with torch.no_grad():
-            eos_token_id = None if no_eos_stop else model.config.eos_token_id
-
-            if turns > 0:
-                base_text = tokenizer.decode(
-                    inputs["input_ids"][0], skip_special_tokens=False
-                )
-
-                print(f"\n{current_speaker}: {current_content}")
-
-                for i in range(turns):
-                    out = model.generate(
-                        **inputs,
-                        max_new_tokens=max_new_tokens,
-                        do_sample=True,
-                        temperature=temperature,
-                        top_p=top_p,
-                        repetition_penalty=repetition_penalty,
-                        eos_token_id=eos_token_id,
-                        pad_token_id=tokenizer.pad_token_id,
-                    )
-
-                    full_text = tokenizer.decode(out[0], skip_special_tokens=False)
-
-                    if decode_output:
-                        response = _extract_first_new_line(
-                            base_text, full_text, token_to_user
-                        )
-                    else:
-                        truncated = truncate_to_turns(base_text, full_text, 1)
-                        if truncated.startswith(base_text):
-                            response = truncated[len(base_text) :]
-                        else:
-                            response = truncated
-
-                    clean_response = response.strip()
-                    if clean_response:
-                        print(clean_response)
-
-                    # Update history
-                    inputs = {
-                        "input_ids": out,
-                        "attention_mask": torch.ones_like(out),
-                    }
-                    base_text = full_text
-
-            else:
+            for _ in range(turns):
                 out = model.generate(
-                    **inputs,
+                    **inputs,  # Uses updated history every loop
                     max_new_tokens=max_new_tokens,
                     do_sample=True,
                     temperature=temperature,
@@ -448,23 +379,49 @@ def main() -> None:
                     eos_token_id=eos_token_id,
                     pad_token_id=tokenizer.pad_token_id,
                 )
-                output_text = tokenizer.decode(out[0], skip_special_tokens=False)
+
+                full_text = tokenizer.decode(out[0], skip_special_tokens=False)
 
                 if decode_output:
-                    # If single turn, clean it up
-                    base_text = tokenizer.decode(
-                        inputs["input_ids"][0], skip_special_tokens=False
+                    response = _extract_first_new_line(
+                        base_text, full_text, token_to_user
                     )
-                    final_text = trim_decoded_turns(
-                        base_text, output_text, turns, token_to_user
-                    )
-                    print("\n" + final_text)
                 else:
-                    print("\n" + output_text)
+                    truncated = truncate_to_turns(base_text, full_text, 1)
+                    if truncated.startswith(base_text):
+                        response = truncated[len(base_text) :]
+                    else:
+                        response = truncated
 
-        # If not interactive, run once and exit
-        if not args.interactive:
-            break
+                clean_response = response.strip()
+                if clean_response:
+                    print(clean_response)  # Output immediately
+                    final_output_parts.append(clean_response)
+
+                # Update inputs and base_text for the next turn
+                inputs = {"input_ids": out, "attention_mask": torch.ones_like(out)}
+                base_text = full_text
+
+            return
+
+        else:
+            out = model.generate(
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                do_sample=True,
+                temperature=temperature,
+                top_p=top_p,
+                repetition_penalty=repetition_penalty,
+                eos_token_id=eos_token_id,
+                pad_token_id=tokenizer.pad_token_id,
+            )
+            output_text = tokenizer.decode(out[0], skip_special_tokens=False)
+
+    if decode_output and turns == 0:
+        token_to_user = load_speaker_map(speaker_map_path)
+        base_text = tokenizer.decode(inputs["input_ids"][0], skip_special_tokens=False)
+        output_text = trim_decoded_turns(base_text, output_text, turns, token_to_user)
+    print(output_text)
 
 
 if __name__ == "__main__":
