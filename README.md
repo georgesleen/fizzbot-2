@@ -1,4 +1,25 @@
 # fizzbot-2
+
+## Quick Start
+1) Install deps:
+```
+uv sync
+```
+
+2) If you have the pretrained model zip (`fizzbot_mistral_7b.zip`):
+   - Put it at `llm/runs/fizzbot_mistral_7b.zip`
+   - Unzip to `llm/runs/fizzbot_mistral_7b/`
+
+3) Run fizzbot:
+```
+make fizzbot
+```
+
+4) For training data from Discrub, put raw exports in:
+```
+data/data_cleaned/
+```
+
 Multi-speaker chat LLM training and inference pipeline for Discord-style data.
 
 This repo provides:
@@ -48,6 +69,13 @@ Input format: per-channel JSON or JSONL with:
 ```
 {"username": "...", "content": "...", "timestamp": "..."}
 ```
+
+Raw Discrub exports go in:
+```
+data/data_cleaned/
+```
+Place one or more `*.json` files there (Discrub channel exports) before running
+`make gen-training-data` or `uv run llm/gen_training_data.py`.
 
 Pipeline stages:
 1) Normalize to `{username, content, timestamp}`.
@@ -104,6 +132,15 @@ llm/runs/<run_name>/<timestamp>/
 Run the latest model:
 ```
 uv run llm/run.py --latest --speaker "<S0>" --content "hello everyone"
+```
+
+Run the "fizzbot" preset (expects a model at `llm/runs/fizzbot_mistral_7b`):
+```
+make fizzbot
+```
+If you trained a model elsewhere, copy or symlink it to:
+```
+llm/runs/fizzbot_mistral_7b
 ```
 
 Run a specific checkpoint:

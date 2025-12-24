@@ -1,6 +1,26 @@
 # LLM
 Training and inference pipeline for the fizzbot multi-speaker chat model.
 
+## Quick Start
+1) Install deps:
+```
+uv sync
+```
+
+2) If you have the pretrained model zip (`fizzbot_mistral_7b.zip`):
+   - Put it at `llm/runs/fizzbot_mistral_7b.zip`
+   - Unzip to `llm/runs/fizzbot_mistral_7b/`
+
+3) Run fizzbot:
+```
+make fizzbot
+```
+
+4) For training data from Discrub, put raw exports in:
+```
+data/data_cleaned/
+```
+
 This directory contains:
 - Data preprocessing to build JSONL training examples.
 - Training script with YAML config and optional validation split.
