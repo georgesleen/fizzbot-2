@@ -33,7 +33,7 @@ struct FizzbotProcess {
 impl FizzbotProcess {
     async fn start() -> std::io::Result<Self> {
         let mut child = Command::new("make")
-            .arg("fizzbot-cpu")
+            .arg("fizzbot-gpu")
             .current_dir(repo_root())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
