@@ -33,7 +33,7 @@ struct FizzbotProcess {
 impl FizzbotProcess {
     async fn start() -> std::io::Result<Self> {
         let mut child = Command::new("make")
-            .arg("fizzbot-gpu")
+            .arg("fizzbot")
             .current_dir(repo_root())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -76,7 +76,8 @@ impl FizzbotProcess {
                     "Fizzbot process exited",
                 ));
             }
-            self.buffer.push_str(&String::from_utf8_lossy(&chunk[..read]));
+            self.buffer
+                .push_str(&String::from_utf8_lossy(&chunk[..read]));
         }
     }
 
@@ -99,15 +100,19 @@ impl FizzbotProcess {
         let output = self.read_until_marker().await?;
         self.ready_for_input = true;
 
-        let response = output
+        let response_lines: Vec<&str> = output
             .lines()
             .map(str::trim)
             .filter(|line| !line.is_empty())
             .filter(|line| !line.starts_with("Speaker ("))
             .filter(|line| !line.starts_with("Content:"))
             .filter(|line| *line != PROMPT_MARKER)
-            .last()
-            .map(|line| line.to_string());
+            .collect();
+        let response = if response_lines.is_empty() {
+            None
+        } else {
+            Some(response_lines.join("\n"))
+        };
         Ok(response)
     }
 }
