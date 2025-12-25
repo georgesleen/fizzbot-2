@@ -47,7 +47,19 @@ def _resolve_model_dir(
         candidates = [p for p in runs_dir.iterdir() if p.is_dir()]
         if not candidates:
             raise FileNotFoundError(f"No run directories found in: {runs_dir}")
-        return str(max(candidates, key=lambda p: p.stat().st_mtime))
+        latest_run = max(candidates, key=lambda p: p.stat().st_mtime)
+        config_path = latest_run / "config.json"
+        if config_path.exists():
+            return str(latest_run)
+        # Fall back to newest checkpoint with a config.json
+        checkpoints = [
+            p
+            for p in latest_run.iterdir()
+            if p.is_dir() and (p / "config.json").exists() and p.name.startswith("checkpoint-")
+        ]
+        if checkpoints:
+            return str(max(checkpoints, key=lambda p: p.stat().st_mtime))
+        return str(latest_run)
 
     if device == "cpu" and cpu_model:
         return cpu_model
@@ -70,6 +82,24 @@ def _resolve_tokenizer_dir(model_dir: Path) -> Path:
     if any((model_dir.parent / name).exists() for name in candidates):
         return model_dir.parent
     return model_dir
+
+
+def _find_tokenizer_dir(runs_dir: Path) -> Path | None:
+    """Find the newest run directory that contains tokenizer files."""
+    if not runs_dir.exists():
+        return None
+    candidates = [
+        p
+        for p in runs_dir.iterdir()
+        if p.is_dir()
+        and any(
+            (p / name).exists()
+            for name in ("tokenizer.json", "tokenizer_config.json", "vocab.json")
+        )
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
 def load_speaker_map(path: Path) -> dict[str, str]:
@@ -340,18 +370,22 @@ def main() -> None:
         adapter_base_model = adapter_config.get("base_model_name_or_path")
     tokenizer_dir = _resolve_tokenizer_dir(model_path) if local_only else model_path
     if local_only and tokenizer_dir == model_path:
-        fallback = (
-            tokenizer_model
-            or base_model_override
-            or adapter_base_model
-            or cpu_model
-            or gpu_model
-        )
-        if not fallback:
-            raise ValueError(
-                "Tokenizer files not found in checkpoint; provide --tokenizer-model."
+        inferred = _find_tokenizer_dir(runs_dir)
+        if inferred:
+            tokenizer_dir = inferred
+        else:
+            fallback = (
+                tokenizer_model
+                or base_model_override
+                or adapter_base_model
+                or cpu_model
+                or gpu_model
             )
-        tokenizer_dir = fallback
+            if not fallback:
+                raise ValueError(
+                    "Tokenizer files not found in checkpoint; provide --tokenizer-model."
+                )
+            tokenizer_dir = fallback
 
     # Check for local tokenizer existence to avoid offline errors with base models
     is_local_tokenizer = Path(str(tokenizer_dir)).exists()
