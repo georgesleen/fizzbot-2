@@ -30,7 +30,7 @@ test-latest:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --latest --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
 fizzbot:
-	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --model-dir llm/runs/fizzbot_mistral_7b --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
+	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --model-dir llm/runs/fizzbot_mistral_7b --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 200 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
 fizzbot-cpu:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
