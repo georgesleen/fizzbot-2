@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -12,6 +13,16 @@ import yaml
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 SPEAKER_RE = re.compile(r"<S\d+>")
+
+
+def _disable_hf_transfer_if_missing() -> None:
+    """Avoid HF transfer errors when the optional package is not installed."""
+    enabled = os.environ.get("HF_HUB_ENABLE_HF_TRANSFER")
+    if enabled in {"1", "true", "True", "yes", "YES"}:
+        try:
+            import hf_transfer  # noqa: F401
+        except Exception:
+            os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
 
 
 def load_config(path: Path) -> Dict[str, Any]:
@@ -203,6 +214,7 @@ def _model_max_length(model) -> int:
 
 def main() -> None:
     """CLI entrypoint for running a trained fizzbot model."""
+    _disable_hf_transfer_if_missing()
     parser = argparse.ArgumentParser(description="Run a trained fizzbot model")
     parser.add_argument(
         "--config",
@@ -370,22 +382,24 @@ def main() -> None:
         adapter_base_model = adapter_config.get("base_model_name_or_path")
     tokenizer_dir = _resolve_tokenizer_dir(model_path) if local_only else model_path
     if local_only and tokenizer_dir == model_path:
-        inferred = _find_tokenizer_dir(runs_dir)
-        if inferred:
-            tokenizer_dir = inferred
+        if tokenizer_model:
+            tokenizer_dir = tokenizer_model
         else:
-            fallback = (
-                tokenizer_model
-                or base_model_override
-                or adapter_base_model
-                or cpu_model
-                or gpu_model
-            )
-            if not fallback:
-                raise ValueError(
-                    "Tokenizer files not found in checkpoint; provide --tokenizer-model."
+            inferred = _find_tokenizer_dir(runs_dir)
+            if inferred:
+                tokenizer_dir = inferred
+            else:
+                fallback = (
+                    base_model_override
+                    or adapter_base_model
+                    or cpu_model
+                    or gpu_model
                 )
-            tokenizer_dir = fallback
+                if not fallback:
+                    raise ValueError(
+                        "Tokenizer files not found in checkpoint; provide --tokenizer-model."
+                    )
+                tokenizer_dir = fallback
 
     # Check for local tokenizer existence to avoid offline errors with base models
     is_local_tokenizer = Path(str(tokenizer_dir)).exists()

@@ -2,7 +2,7 @@ IMAGE_NAME ?= fizzbot-llm
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 DOCKERFILE ?= $(ROOT_DIR)/llm/Dockerfile
 
-.PHONY: help docker-build docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data test-latest fizzbot fizzbot-cpu fizzbot-cpu-once
+.PHONY: help docker-build docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data test-latest fizzbot fizzbot-cpu fizzbot-cpu-once rsync-root
 
 help:
 	@echo "Targets:"
@@ -21,6 +21,7 @@ help:
 	@echo "  docker-smoke-cpu       Run CPU smoke test in Docker (no build)"
 	@echo "  docker-train-cpu-build Build and run CPU training in Docker"
 	@echo "  docker-smoke-cpu-build Build and run CPU smoke test in Docker"
+	@echo "  rsync-root             Sync repo to root@74.2.96.43:/workspace"
 
 gen-training-data:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/gen_training_data.py
@@ -32,7 +33,7 @@ fizzbot:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --model-dir llm/runs/fizzbot_mistral_7b --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
 fizzbot-cpu:
-	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
+	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
 fizzbot-cpu-once:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --speaker "$(SPEAKER)" --content "$(CONTENT)"
@@ -82,3 +83,13 @@ docker-smoke-cpu-build: docker-build docker-smoke-cpu
 
 local-smoke:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/train.py --smoke-test
+
+rsync-root:
+	rsync -avz \
+		--exclude ".venv/" \
+		--exclude ".uv_cache/" \
+		--exclude "__pycache__/" \
+		--exclude "target/" \
+		--exclude ".git/" \
+		-e "ssh -p 17260 -i ~/.ssh/id_ed25519" \
+		./ root@74.2.96.43:/workspace
