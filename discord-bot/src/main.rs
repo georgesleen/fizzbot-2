@@ -14,11 +14,20 @@ impl EventHandler for Handler {
     // Event handlers are dispatched through a threadpool,
     // so multiple events can be dispatched simultaneously.
     async fn message(&self, context: Context, message: Message) {
+        let bot_id = context.cache.current_user().id;
+
         for mention in message.mentions {
-            if mention.id == context.cache.current_user().id {
+            if mention.id == bot_id {
+                let content = message
+                    .content
+                    .replace(&format!("<@{}>", bot_id), "")
+                    .replace(&format!("<@!{}", bot_id), "")
+                    .trim()
+                    .to_string();
+
                 if let Err(why) = message
                     .channel_id
-                    .say(&context.http, "Fizzbot is here")
+                    .say(&context.http, format!("{}: {}", message.author, content))
                     .await
                 {
                     println!("Error sending message: {why:?}");
