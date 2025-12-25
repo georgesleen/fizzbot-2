@@ -14,10 +14,15 @@ impl EventHandler for Handler {
     // Event handlers are dispatched through a threadpool,
     // so multiple events can be dispatched simultaneously.
     async fn message(&self, context: Context, message: Message) {
-        if message.content == "!ping" {
-            // Sending a message can fail, log to stdout with a description.
-            if let Err(why) = message.channel_id.say(&context.http, "Fizzbot").await {
-                println!("Error sending message: {why:?}");
+        for mention in message.mentions {
+            if mention.id == context.cache.current_user().id {
+                if let Err(why) = message
+                    .channel_id
+                    .say(&context.http, "Fizzbot is here")
+                    .await
+                {
+                    println!("Error sending message: {why:?}");
+                }
             }
         }
     }
