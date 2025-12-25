@@ -2,12 +2,13 @@ IMAGE_NAME ?= fizzbot-llm
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 DOCKERFILE ?= $(ROOT_DIR)/llm/Dockerfile
 
-.PHONY: help docker-build docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data test-latest fizzbot fizzbot-cpu
+.PHONY: help docker-build docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data test-latest fizzbot fizzbot-cpu fizzbot-cpu-once
 
 help:
 	@echo "Targets:"
 	@echo "  fizzbot                Run inference using fizzbot_mistral_7b in llm/runs/"
 	@echo "  fizzbot-cpu            Run inference against latest fizzbot_cpu run"
+	@echo "  fizzbot-cpu-once       Run one CPU inference (SPEAKER, CONTENT)"
 	@echo "  gen-training-data      Generate training examples JSONL"
 	@echo "  docker-build           Build the training Docker image"
 	@echo "  docker-train-gpu       Run GPU training in Docker (no build)"
@@ -32,6 +33,9 @@ fizzbot:
 
 fizzbot-cpu:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
+
+fizzbot-cpu-once:
+	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --speaker "$(SPEAKER)" --content "$(CONTENT)"
 
 docker-build:
 	docker build -t $(IMAGE_NAME) -f $(DOCKERFILE) $(ROOT_DIR)
