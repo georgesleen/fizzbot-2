@@ -86,10 +86,13 @@ local-smoke:
 
 rsync-root:
 	rsync -avz \
+		--no-owner \
+		--no-group \
+		--no-perms \
 		--exclude ".venv/" \
 		--exclude ".uv_cache/" \
 		--exclude "__pycache__/" \
 		--exclude "target/" \
 		--exclude ".git/" \
-		-e "ssh -p 17260 -i ~/.ssh/id_ed25519" \
-		./ root@74.2.96.43:/workspace
+		-e "ssh -p 14864 -i ~/.ssh/id_ed25519" \
+		./ root@103.196.86.219:/workspace

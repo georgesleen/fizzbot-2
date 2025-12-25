@@ -5,6 +5,8 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::process::Stdio;
 
+use rand::seq::IteratorRandom;
+use rand::thread_rng;
 use serenity::async_trait;
 use serenity::builder::EditMessage;
 use serenity::model::channel::Message;
@@ -150,7 +152,11 @@ fn lookup_user(name: &str) -> Option<SpeakerToken> {
     let reader = BufReader::new(file);
 
     let map: HashMap<String, SpeakerToken> = serde_json::from_reader(reader).ok()?;
-    return map.get(name).cloned();
+    if let Some(token) = map.get(name) {
+        return Some(token.clone());
+    }
+    let mut rng = thread_rng();
+    map.values().choose(&mut rng).cloned()
 }
 
 /// Call fizzbot and return the generated response
@@ -265,6 +271,13 @@ impl EventHandler for Handler {
                             println!("Error editing message: {why:?}");
                         }
                     }
+                } else {
+                    let _ = message
+                        .reply(
+                            &context.http,
+                            "I don't have training data for you yet.",
+                        )
+                        .await;
                 }
                 // Prevent duplicate replies for multiple mentions
                 break;
