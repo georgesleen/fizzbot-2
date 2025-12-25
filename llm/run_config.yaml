@@ -10,7 +10,8 @@ run:
   # Base model to use when loading LoRA adapters (optional override).
   base_model: null
   # Tokenizer model id/path to use when a checkpoint lacks tokenizer files.
-  tokenizer_model: gpt2
+  # Leave empty to auto-pick a local tokenizer from the latest run directory.
+  tokenizer_model: ""
   # Speaker map used to decode <S#> tokens into usernames.
   speaker_map: ../train_data/speaker_map.json
   # Decode speaker tokens into usernames by default.
