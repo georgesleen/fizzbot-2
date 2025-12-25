@@ -21,17 +21,18 @@ impl EventHandler for Handler {
                 let content = message
                     .content
                     .replace(&format!("<@{}>", bot_id), "")
-                    .replace(&format!("<@!{}", bot_id), "")
+                    .replace(&format!("<@!{}>", bot_id), "")
                     .trim()
                     .to_string();
+                let reply = format!("{}: {}", message.author.name, content);
 
-                if let Err(why) = message
-                    .channel_id
-                    .say(&context.http, format!("{}: {}", message.author, content))
-                    .await
-                {
+                println!("{}", reply);
+
+                if let Err(why) = message.channel_id.say(&context.http, reply).await {
                     println!("Error sending message: {why:?}");
                 }
+                // Prevent duplicate replies for multiple mentions
+                break;
             }
         }
     }
