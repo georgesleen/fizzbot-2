@@ -142,8 +142,8 @@ These are defined in the repo root `Makefile`:
 - `make gen-training-data`
 - `make local-smoke`
 - `make test-latest`
-- `make run-latest`
 - `make fizzbot`
+- `make fizzbot-cpu`
 - `make docker-build`
 - `make docker-train-gpu`
 - `make docker-smoke`
