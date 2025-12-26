@@ -1,4 +1,4 @@
-FROM rust:1.82-slim-bookworm
+FROM nvidia/cuda:13.1.0-runtime-ubuntu24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /workspace
