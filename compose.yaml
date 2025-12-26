@@ -1,5 +1,6 @@
 services:
   fizzbot:
+    image: fizzbot:latest
     build:
       context: .
       dockerfile: Dockerfile
