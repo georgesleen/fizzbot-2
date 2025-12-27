@@ -1,10 +1,4 @@
-.env
-discord-bot/.env
-.venv
-__pycache__/
-**/__pycache__/
-target/
-discord-bot/target/
-llm/data/
-llm/train_data/
-llm/runs/
+llm/runs/**
+!llm/runs/fizzbot_mistral_7b/**
+llm/train_data/**
+!llm/train_data/speaker_map.json

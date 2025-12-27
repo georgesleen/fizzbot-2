@@ -6,6 +6,3 @@ services:
       dockerfile: Dockerfile
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN}
-    volumes:
-      - ./llm/runs:/workspace/llm/runs
-      - ./llm/train_data:/workspace/llm/train_data
