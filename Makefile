@@ -95,7 +95,8 @@ rsync-root:
 		--exclude "target/" \
 		--exclude ".git/" \
 		--exclude "fizzbot_cpu/" \
+		--exclude "fizzbot" \
 		--exclude "*.zip" \
 		--exclude "data/*.py" \
 		-e "ssh" \
-		./ sleen@100.79.76.20:/home/sleen/workspace
+		./ george-sleen@gs-server:/home/george-sleen/Documents/fizzbot
