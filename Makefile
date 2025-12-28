@@ -94,5 +94,9 @@ rsync-root:
 		--exclude "__pycache__/" \
 		--exclude "target/" \
 		--exclude ".git/" \
-		-e "ssh -p 14864 -i ~/.ssh/id_ed25519" \
-		./ root@103.196.86.219:/workspace
+		--exclude "fizzbot_cpu/" \
+		--exclude "fizzbot" \
+		--exclude "*.zip" \
+		--exclude "data/*.py" \
+		-e "ssh -p 12867 -i ~/.ssh/id_ed25519" \
+		./ root@213.173.99.11:/workspace

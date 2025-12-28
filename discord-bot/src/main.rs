@@ -127,10 +127,17 @@ static GENERATION_SEMAPHORE: Lazy<Semaphore> = Lazy::new(|| Semaphore::new(1));
 /// @return the path to the repository root
 fn repo_root() -> PathBuf {
     let mut dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let fallback = dir.clone();
     while !dir.join(".git").exists() {
-        dir = dir.parent().unwrap().to_path_buf();
+        let Some(parent) = dir.parent() else {
+            return fallback
+                .parent()
+                .map(PathBuf::from)
+                .unwrap_or(fallback);
+        };
+        dir = parent.to_path_buf();
     }
-    return dir;
+    dir
 }
 
 /// Get the path to the lookup table for user to user token

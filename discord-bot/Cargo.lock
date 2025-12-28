@@ -322,6 +322,7 @@ dependencies = [
  "json",
  "once_cell",
  "poise",
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "serenity",

@@ -190,6 +190,27 @@ Common targets:
 - `make fix-venv-perms`
 
 ## Docker
+Root Dockerfile (runs the Discord bot):
+```
+docker build -t fizzbot -f Dockerfile .
+docker run --rm -it \
+  -e DISCORD_TOKEN="your_token_here" \
+  -v "$PWD/llm/runs":/workspace/llm/runs \
+  -v "$PWD/llm/train_data":/workspace/llm/train_data \
+  fizzbot
+```
+
+Docker Compose (recommended):
+```
+export DISCORD_TOKEN="your_token_here"
+docker compose up --build
+```
+
+Notes:
+- The bot calls `make fizzbot`, which expects `llm/runs` and `llm/train_data`.
+- `discord-bot/.env` is ignored in the image; pass `DISCORD_TOKEN` or mount a `.env`.
+
+LLM Dockerfile (GPU training):
 Build:
 ```
 docker build -t fizzbot-llm -f llm/Dockerfile .
