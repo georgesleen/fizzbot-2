@@ -2,7 +2,7 @@ IMAGE_NAME ?= fizzbot-llm
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 DOCKERFILE ?= $(ROOT_DIR)/llm/Dockerfile
 
-.PHONY: help docker-train-build docker-publish docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data fizzbot fizzbot-cpu rsync-root
+.PHONY: help docker-train-build docker-publish docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke test-local-smoke gen-training-data fizzbot fizzbot-cpu rsync-root
 
 help:
 	@echo "Targets:"
@@ -10,13 +10,14 @@ help:
 	@echo "  fizzbot-cpu            Run inference against latest fizzbot_cpu run"
 	@echo "  gen-training-data      Generate training examples JSONL"
 	@echo "  local-smoke            Run a tiny local smoke test"
+	@echo "  test-local-smoke       Train + run the smoke model locally"
 	@echo "  docker-publish         Build and push georgesleen/fizzbot:latest"
 	@echo "  docker-train-build     Build the training Docker image"
 	@echo "  docker-train-gpu       Run GPU training in Docker (no build)"
 	@echo "  docker-train-cpu       Run CPU training in Docker (no build)"
 	@echo "  docker-smoke           Run GPU smoke test in Docker (no build)"
 	@echo "  docker-smoke-cpu       Run CPU smoke test in Docker (no build)"
-	@echo "  rsync-root             Sync repo to root@74.2.96.43:/workspace"
+	@echo "  rsync-root             Sync repo to personal server"
 
 gen-training-data:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/gen_training_data.py
@@ -68,6 +69,9 @@ docker-smoke-cpu:
 
 local-smoke:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/train.py --smoke-test
+
+test-local-smoke: local-smoke
+	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot --latest --tokenizer-model sshleifer/tiny-gpt2 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
 rsync-root:
 	rsync -avz \

@@ -483,7 +483,7 @@ def main() -> None:
 
                 content_lines = []
                 while True:
-                    line = input()
+                    line = input("Content line (end message by sending EOF): ")
                     if line.strip() == END_OF_CONTENT_MARKER:
                         break
                     content_lines.append(line)
