@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+from inspect import signature
 from pathlib import Path
 from typing import Any, Dict, List
 from datetime import datetime
@@ -194,9 +195,11 @@ def apply_smoke_test_overrides(cfg: Dict[str, Any]) -> Dict[str, Any]:
     cfg["data"] = dict(cfg.get("data", {}))
     cfg["training"] = dict(cfg.get("training", {}))
     cfg["quantization"] = dict(cfg.get("quantization", {}))
+    cfg["lora"] = dict(cfg.get("lora", {}))
 
     cfg["model"]["name_or_path"] = "sshleifer/tiny-gpt2"
     cfg["quantization"]["mode"] = "none"
+    cfg["lora"]["enabled"] = False
 
     cfg["data"]["max_train_examples"] = 200
     cfg["data"]["max_length"] = 128
@@ -290,32 +293,37 @@ def main() -> None:
     )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = str(base_output_dir / timestamp)
-    args = TrainingArguments(
-        output_dir=output_dir,
-        num_train_epochs=float(train_cfg.get("num_train_epochs", 1)),
-        per_device_train_batch_size=int(
+    args_kwargs: Dict[str, Any] = {
+        "output_dir": output_dir,
+        "num_train_epochs": float(train_cfg.get("num_train_epochs", 1)),
+        "per_device_train_batch_size": int(
             train_cfg.get("per_device_train_batch_size", 4)
         ),
-        per_device_eval_batch_size=int(
+        "per_device_eval_batch_size": int(
             train_cfg.get("per_device_eval_batch_size", 4)
         ),
-        gradient_accumulation_steps=int(
+        "gradient_accumulation_steps": int(
             train_cfg.get("gradient_accumulation_steps", 1)
         ),
-        learning_rate=float(train_cfg.get("learning_rate", 5e-5)),
-        weight_decay=float(train_cfg.get("weight_decay", 0.0)),
-        warmup_steps=int(train_cfg.get("warmup_steps", 0)),
-        logging_steps=int(train_cfg.get("logging_steps", 50)),
-        eval_steps=int(train_cfg.get("eval_steps", 200)),
-        save_steps=int(train_cfg.get("save_steps", 500)),
-        save_total_limit=int(train_cfg.get("save_total_limit", 2)),
-        seed=seed,
-        max_steps=int(train_cfg.get("max_steps", -1)),
-        fp16=use_fp16,
-        bf16=use_bf16,
-        evaluation_strategy="steps" if eval_dataset else "no",
-        report_to=[],
-    )
+        "learning_rate": float(train_cfg.get("learning_rate", 5e-5)),
+        "weight_decay": float(train_cfg.get("weight_decay", 0.0)),
+        "warmup_steps": int(train_cfg.get("warmup_steps", 0)),
+        "logging_steps": int(train_cfg.get("logging_steps", 50)),
+        "eval_steps": int(train_cfg.get("eval_steps", 200)),
+        "save_steps": int(train_cfg.get("save_steps", 500)),
+        "save_total_limit": int(train_cfg.get("save_total_limit", 2)),
+        "seed": seed,
+        "max_steps": int(train_cfg.get("max_steps", -1)),
+        "fp16": use_fp16,
+        "bf16": use_bf16,
+        "report_to": [],
+    }
+    eval_strategy = "steps" if eval_dataset else "no"
+    if "evaluation_strategy" in signature(TrainingArguments.__init__).parameters:
+        args_kwargs["evaluation_strategy"] = eval_strategy
+    else:
+        args_kwargs["eval_strategy"] = eval_strategy
+    args = TrainingArguments(**args_kwargs)
 
     trainer = Trainer(
         model=model,
