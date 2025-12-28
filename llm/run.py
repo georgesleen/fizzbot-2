@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict
 
+import sys
 import torch
 import yaml
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -225,6 +226,15 @@ def _model_max_length(model) -> int:
     if hasattr(model.config, "n_positions"):
         return int(model.config.n_positions)
     return 1024
+
+
+def _prompt_input(prompt: str) -> str:
+    """
+    Prompt on stderr to keep stdout clean for bot parsing.
+    """
+    sys.stderr.write(prompt)
+    sys.stderr.flush()
+    return input()
 
 
 def main() -> None:
@@ -475,7 +485,7 @@ def main() -> None:
         if args.interactive:
             try:
                 print("\n--- New Prompt ---")
-                current_speaker = input("Speaker (e.g. <S0>): ").strip()
+                current_speaker = _prompt_input("Speaker (e.g. <S0>): ").strip()
                 if current_speaker.lower() in ["exit", "quit"]:
                     break
                 if not current_speaker:
@@ -483,7 +493,9 @@ def main() -> None:
 
                 content_lines = []
                 while True:
-                    line = input("Content line (end message by sending EOF): ")
+                    line = _prompt_input(
+                        "Content line (end message by sending EOF): "
+                    )
                     if line.strip() == END_OF_CONTENT_MARKER:
                         break
                     content_lines.append(line)

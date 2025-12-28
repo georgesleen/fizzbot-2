@@ -36,7 +36,7 @@ struct FizzbotProcess {
 impl FizzbotProcess {
     async fn start() -> std::io::Result<Self> {
         let mut child = Command::new("make")
-            .arg("test-local-smoke")
+            .arg("fizzbot")
             .current_dir(repo_root())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -109,6 +109,7 @@ impl FizzbotProcess {
             .filter(|line| !line.is_empty())
             .filter(|line| !line.starts_with("Speaker ("))
             .filter(|line| !line.starts_with("Content:"))
+            .filter(|line| !line.contains("Content line (end message by sending EOF)"))
             .filter(|line| *line != PROMPT_MARKER)
             .collect();
         let response = if response_lines.is_empty() {
