@@ -199,7 +199,7 @@ async fn generate_response(speaker: SpeakerToken, content: &str) -> Option<Strin
 }
 
 fn prevent_pings(text: &str) -> String {
-    text.replace("@", "@ ")
+    text.replace("@", "@/")
 }
 
 #[async_trait]

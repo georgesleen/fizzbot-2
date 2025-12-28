@@ -217,6 +217,27 @@ def _extract_first_new_line(
     return ""
 
 
+def _extract_first_new_turn(
+    base_text: str, full_text: str, token_to_user: dict[str, str]
+) -> str:
+    """
+    Extract the first newly generated speaker turn after the prompt.
+    """
+    gen_text = full_text[len(base_text) :] if full_text.startswith(base_text) else full_text
+    match = SPEAKER_RE.search(gen_text)
+    if not match:
+        return ""
+    token = match.group(0)
+    rest = gen_text[match.end() :]
+    next_match = SPEAKER_RE.search(rest)
+    content = rest[: next_match.start()] if next_match else rest
+    content = content.replace("<EOT>", "").strip()
+    if not content:
+        return ""
+    username = token_to_user.get(token, token)
+    return f"{content} (most likely to be said by: {username})".rstrip()
+
+
 def _model_max_length(model) -> int:
     """
     Get model max position length for safe truncation.
@@ -582,9 +603,14 @@ def main() -> None:
                     base_text = tokenizer.decode(
                         inputs["input_ids"][0], skip_special_tokens=False
                     )
-                    final_text = trim_decoded_turns(
-                        base_text, output_text, turns, token_to_user
-                    )
+                    if args.interactive:
+                        final_text = _extract_first_new_turn(
+                            base_text, output_text, token_to_user
+                        )
+                    else:
+                        final_text = trim_decoded_turns(
+                            base_text, output_text, turns, token_to_user
+                        )
                     print("\n" + final_text)
                 else:
                     print("\n" + output_text)
