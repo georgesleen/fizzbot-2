@@ -70,7 +70,7 @@ docker-smoke-cpu:
 local-smoke:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/train.py --smoke-test
 
-test-local-smoke: local-smoke
+test-local-smoke:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot --latest --tokenizer-model sshleifer/tiny-gpt2 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
 rsync-root:

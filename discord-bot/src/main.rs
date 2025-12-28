@@ -36,7 +36,7 @@ struct FizzbotProcess {
 impl FizzbotProcess {
     async fn start() -> std::io::Result<Self> {
         let mut child = Command::new("make")
-            .arg("fizzbot")
+            .arg("test-local-smoke")
             .current_dir(repo_root())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -95,7 +95,7 @@ impl FizzbotProcess {
         }
 
         self.stdin
-            .write_all(format!("{speaker}\n{content}\n{END_OF_CONTENT_MARKER}").as_bytes())
+            .write_all(format!("{speaker}\n{content}\n{END_OF_CONTENT_MARKER}\n").as_bytes())
             .await?;
         self.stdin.flush().await?;
         self.ready_for_input = false;
