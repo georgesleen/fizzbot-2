@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
-import sys
 from pathlib import Path
 from typing import Any, Dict
 
@@ -13,20 +11,13 @@ import yaml
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 SPEAKER_RE = re.compile(r"<S\d+>")
-
-
-def _disable_hf_transfer_if_missing() -> None:
-    """Avoid HF transfer errors when the optional package is not installed."""
-    enabled = os.environ.get("HF_HUB_ENABLE_HF_TRANSFER")
-    if enabled in {"1", "true", "True", "yes", "YES"}:
-        try:
-            import hf_transfer  # noqa: F401
-        except Exception:
-            os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
+END_OF_CONTENT_MARKER = "EOF"
 
 
 def load_config(path: Path) -> Dict[str, Any]:
-    """Load a YAML config file into a dictionary."""
+    """
+    Load a YAML config file into a dictionary.
+    """
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
@@ -39,9 +30,12 @@ def _resolve_model_dir(
     cpu_model: str | None,
     gpu_model: str | None,
 ) -> str:
-    """Resolve the model path or id, optionally selecting the latest run."""
+    """
+    Resolve the model path or id, optionally selecting the latest run.
+    """
     if model_dir is not None and latest:
         raise ValueError("Use either --model-dir or --latest, not both.")
+
     if model_dir is not None:
         candidate = model_dir
         if not candidate.exists() and not candidate.is_absolute():
@@ -52,6 +46,7 @@ def _resolve_model_dir(
                 f"Tried {candidate} as a fallback."
             )
         return str(candidate.resolve())
+
     if latest:
         if not runs_dir.exists():
             raise FileNotFoundError(f"Runs directory not found: {runs_dir}")
@@ -66,7 +61,9 @@ def _resolve_model_dir(
         checkpoints = [
             p
             for p in latest_run.iterdir()
-            if p.is_dir() and (p / "config.json").exists() and p.name.startswith("checkpoint-")
+            if p.is_dir()
+            and (p / "config.json").exists()
+            and p.name.startswith("checkpoint-")
         ]
         if checkpoints:
             return str(max(checkpoints, key=lambda p: p.stat().st_mtime))
@@ -81,7 +78,9 @@ def _resolve_model_dir(
 
 
 def _resolve_tokenizer_dir(model_dir: Path) -> Path:
-    """Use checkpoint tokenizer if present; otherwise fall back to parent run dir."""
+    """
+    Use checkpoint tokenizer if present; otherwise fall back to parent run dir.
+    """
     candidates = [
         "tokenizer.json",
         "tokenizer_config.json",
@@ -96,7 +95,9 @@ def _resolve_tokenizer_dir(model_dir: Path) -> Path:
 
 
 def _find_tokenizer_dir(runs_dir: Path) -> Path | None:
-    """Find the newest run directory that contains tokenizer files."""
+    """
+    Find the newest run directory that contains tokenizer files.
+    """
     if not runs_dir.exists():
         return None
     candidates = [
@@ -114,14 +115,18 @@ def _find_tokenizer_dir(runs_dir: Path) -> Path | None:
 
 
 def load_speaker_map(path: Path) -> dict[str, str]:
-    """Load the speaker map (username -> token) and invert it."""
+    """
+    Load the speaker map (username -> token) and invert it.
+    """
     with path.open("r", encoding="utf-8") as f:
         speaker_map = json.load(f)
     return {token: username for username, token in speaker_map.items()}
 
 
 def decode_text(text: str, token_to_user: dict[str, str]) -> str:
-    """Replace speaker tokens with usernames and format lines as 'user: content'."""
+    """
+    Replace speaker tokens with usernames and format lines as 'user: content'.
+    """
     lines = []
     segments = re.split(r"(<S\d+>)", text)
     current_token = None
@@ -151,12 +156,16 @@ def decode_text(text: str, token_to_user: dict[str, str]) -> str:
 
 
 def count_speaker_tokens(text: str) -> int:
-    """Count speaker tokens in text."""
+    """
+    Count speaker tokens in text.
+    """
     return len(SPEAKER_RE.findall(text))
 
 
 def truncate_to_turns(base_text: str, full_text: str, turns: int) -> str:
-    """Truncate generated text to a fixed number of new speaker turns."""
+    """
+    Truncate generated text to a fixed number of new speaker turns.
+    """
     if turns <= 0:
         return full_text
     if not full_text.startswith(base_text):
@@ -179,7 +188,9 @@ def truncate_to_turns(base_text: str, full_text: str, turns: int) -> str:
 def trim_decoded_turns(
     base_text: str, full_text: str, turns: int, token_to_user: dict[str, str]
 ) -> str:
-    """Return only the newly generated turns after the prompt."""
+    """
+    Return only the newly generated turns after the prompt.
+    """
     if turns <= 0:
         return decode_text(full_text, token_to_user)
     base_lines = decode_text(base_text, token_to_user).splitlines()
@@ -193,7 +204,9 @@ def trim_decoded_turns(
 def _extract_first_new_line(
     base_text: str, full_text: str, token_to_user: dict[str, str]
 ) -> str:
-    """Extract the first new decoded line after the prompt."""
+    """
+    Extract the first new decoded line after the prompt.
+    """
     base_lines = decode_text(base_text, token_to_user).splitlines()
     full_lines = decode_text(full_text, token_to_user).splitlines()
     if len(full_lines) > len(base_lines):
@@ -204,7 +217,9 @@ def _extract_first_new_line(
 
 
 def _model_max_length(model) -> int:
-    """Get model max position length for safe truncation."""
+    """
+    Get model max position length for safe truncation.
+    """
     if hasattr(model.config, "max_position_embeddings"):
         return int(model.config.max_position_embeddings)
     if hasattr(model.config, "n_positions"):
@@ -213,8 +228,9 @@ def _model_max_length(model) -> int:
 
 
 def main() -> None:
-    """CLI entrypoint for running a trained fizzbot model."""
-    _disable_hf_transfer_if_missing()
+    """
+    CLI entrypoint for running a trained fizzbot model.
+    """
     parser = argparse.ArgumentParser(description="Run a trained fizzbot model")
     parser.add_argument(
         "--config",
@@ -390,10 +406,7 @@ def main() -> None:
                 tokenizer_dir = inferred
             else:
                 fallback = (
-                    base_model_override
-                    or adapter_base_model
-                    or cpu_model
-                    or gpu_model
+                    base_model_override or adapter_base_model or cpu_model or gpu_model
                 )
                 if not fallback:
                     raise ValueError(
@@ -468,9 +481,18 @@ def main() -> None:
                 if not current_speaker:
                     continue
 
-                current_content = input("Content: ").strip()
+                content_lines = []
+                while True:
+                    line = input()
+                    if line.strip() == END_OF_CONTENT_MARKER:
+                        break
+                    content_lines.append(line)
+
+                current_content = "\n".join(content_lines)
+
                 if current_content.lower() in ["exit", "quit"]:
                     break
+
             except KeyboardInterrupt:
                 print("\nExiting...")
                 break

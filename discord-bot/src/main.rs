@@ -23,6 +23,7 @@ type SpeakerToken = String;
 struct Handler;
 
 const PROMPT_MARKER: &str = "--- New Prompt ---";
+const END_OF_CONTENT_MARKER: &str = "EOF";
 
 struct FizzbotProcess {
     _child: tokio::process::Child,
@@ -94,7 +95,7 @@ impl FizzbotProcess {
         }
 
         self.stdin
-            .write_all(format!("{speaker}\n{content}\n").as_bytes())
+            .write_all(format!("{speaker}\n{content}\n{END_OF_CONTENT_MARKER}").as_bytes())
             .await?;
         self.stdin.flush().await?;
         self.ready_for_input = false;
@@ -130,10 +131,7 @@ fn repo_root() -> PathBuf {
     let fallback = dir.clone();
     while !dir.join(".git").exists() {
         let Some(parent) = dir.parent() else {
-            return fallback
-                .parent()
-                .map(PathBuf::from)
-                .unwrap_or(fallback);
+            return fallback.parent().map(PathBuf::from).unwrap_or(fallback);
         };
         dir = parent.to_path_buf();
     }
@@ -214,6 +212,7 @@ impl EventHandler for Handler {
                     .content
                     .replace(&format!("<@{}>", bot_id), "")
                     .replace(&format!("<@!{}>", bot_id), "")
+                    .replace("@", "@ ") // Make it impossible to ping anyone
                     .trim()
                     .to_string();
                 if content.is_empty() {
@@ -280,10 +279,7 @@ impl EventHandler for Handler {
                     }
                 } else {
                     let _ = message
-                        .reply(
-                            &context.http,
-                            "I don't have training data for you yet.",
-                        )
+                        .reply(&context.http, "I don't have training data for you yet.")
                         .await;
                 }
                 // Prevent duplicate replies for multiple mentions
