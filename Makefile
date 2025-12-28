@@ -98,5 +98,5 @@ rsync-root:
 		--exclude "fizzbot" \
 		--exclude "*.zip" \
 		--exclude "data/*.py" \
-		-e "ssh -p 12867 -i ~/.ssh/id_ed25519" \
-		./ root@213.173.99.11:/workspace
+		-e "ssh" \
+		./ george-sleen@gs-server:/home/george-sleen/Documents/fizzbot
