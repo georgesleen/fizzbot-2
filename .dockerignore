@@ -1,3 +1,4 @@
+llm/data/**
 llm/runs/**
 !llm/runs/fizzbot_mistral_7b/**
 llm/train_data/**
