@@ -2,32 +2,24 @@ IMAGE_NAME ?= fizzbot-llm
 ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 DOCKERFILE ?= $(ROOT_DIR)/llm/Dockerfile
 
-.PHONY: help docker-build docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data test-latest fizzbot fizzbot-cpu fizzbot-cpu-once rsync-root
+.PHONY: help docker-train-build docker-publish docker-train-gpu docker-smoke docker-train-cpu docker-smoke-cpu local-smoke gen-training-data fizzbot fizzbot-cpu rsync-root
 
 help:
 	@echo "Targets:"
 	@echo "  fizzbot                Run inference using fizzbot_mistral_7b in llm/runs/"
 	@echo "  fizzbot-cpu            Run inference against latest fizzbot_cpu run"
-	@echo "  fizzbot-cpu-once       Run one CPU inference (SPEAKER, CONTENT)"
 	@echo "  gen-training-data      Generate training examples JSONL"
-	@echo "  docker-build           Build the training Docker image"
-	@echo "  docker-train-gpu       Run GPU training in Docker (no build)"
-	@echo "  docker-train-gpu-build Build and run GPU training in Docker"
-	@echo "  docker-smoke           Run GPU smoke test in Docker (no build)"
-	@echo "  docker-smoke-build     Build and run GPU smoke test in Docker"
-	@echo "  test-latest            Run inference against latest trained model"
 	@echo "  local-smoke            Run a tiny local smoke test"
+	@echo "  docker-publish         Build and push georgesleen/fizzbot:latest"
+	@echo "  docker-train-build     Build the training Docker image"
+	@echo "  docker-train-gpu       Run GPU training in Docker (no build)"
 	@echo "  docker-train-cpu       Run CPU training in Docker (no build)"
+	@echo "  docker-smoke           Run GPU smoke test in Docker (no build)"
 	@echo "  docker-smoke-cpu       Run CPU smoke test in Docker (no build)"
-	@echo "  docker-train-cpu-build Build and run CPU training in Docker"
-	@echo "  docker-smoke-cpu-build Build and run CPU smoke test in Docker"
 	@echo "  rsync-root             Sync repo to root@74.2.96.43:/workspace"
 
 gen-training-data:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/gen_training_data.py
-
-test-latest:
-	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --latest --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
 fizzbot:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --model-dir llm/runs/fizzbot_mistral_7b --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 200 --temperature 0.9 --repetition-penalty 1.1 --interactive
@@ -35,11 +27,12 @@ fizzbot:
 fizzbot-cpu:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --tokenizer-model mistralai/Mistral-7B-v0.1 --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --interactive
 
-fizzbot-cpu-once:
-	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/run.py --runs-dir runs/fizzbot_cpu --latest --decode --max-new-tokens 400 --temperature 0.9 --repetition-penalty 1.1 --speaker "$(SPEAKER)" --content "$(CONTENT)"
-
-docker-build:
+docker-train-build:
 	docker build -t $(IMAGE_NAME) -f $(DOCKERFILE) $(ROOT_DIR)
+
+docker-publish:
+	docker build -t georgesleen/fizzbot:latest .
+	docker push georgesleen/fizzbot:latest
 
 docker-train-gpu:
 	docker run --rm -it --gpus all \
@@ -57,10 +50,6 @@ docker-smoke:
 		$(IMAGE_NAME) \
 		uv run llm/train.py --smoke-test
 
-docker-train-gpu-build: docker-build docker-train-gpu
-
-docker-smoke-build: docker-build docker-smoke
-
 docker-train-cpu:
 	docker run --rm -it \
 		-e UV_PROJECT_ENVIRONMENT=/tmp/uv-venv \
@@ -76,10 +65,6 @@ docker-smoke-cpu:
 		-w /workspace \
 		$(IMAGE_NAME) \
 		uv run llm/train.py --smoke-test --config llm/train_config_cpu.yaml
-
-docker-train-cpu-build: docker-build docker-train-cpu
-
-docker-smoke-cpu-build: docker-build docker-smoke-cpu
 
 local-smoke:
 	UV_CACHE_DIR=$(ROOT_DIR)/.uv_cache uv run llm/train.py --smoke-test
