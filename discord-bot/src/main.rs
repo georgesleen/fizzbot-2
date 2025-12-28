@@ -198,6 +198,10 @@ async fn generate_response(speaker: SpeakerToken, content: &str) -> Option<Strin
     }
 }
 
+fn prevent_pings(text: &str) -> String {
+    text.replace("@", "@ ")
+}
+
 #[async_trait]
 impl EventHandler for Handler {
     // Set a handler for the 'message' event. This is called whenever a new message is recieved.
@@ -256,15 +260,16 @@ impl EventHandler for Handler {
                     let reply = generate_response(speaker, &content).await;
 
                     if let Some(reply) = reply {
-                        println!("{}", reply);
+                        let safe_reply = prevent_pings(&reply);
+                        println!("{}", safe_reply);
                         if let Some(ref mut sent) = placeholder {
                             if let Err(why) = sent
-                                .edit(&context.http, EditMessage::new().content(reply))
+                                .edit(&context.http, EditMessage::new().content(safe_reply))
                                 .await
                             {
                                 println!("Error editing message: {why:?}");
                             }
-                        } else if let Err(why) = message.reply(&context.http, reply).await {
+                        } else if let Err(why) = message.reply(&context.http, safe_reply).await {
                             println!("Error sending message: {why:?}");
                         }
                     } else if let Some(ref mut sent) = placeholder {
